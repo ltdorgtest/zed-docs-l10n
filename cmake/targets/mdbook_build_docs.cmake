@@ -91,14 +91,30 @@ foreach(_LANGUAGE ${LANGUAGE_LIST})
     if (CMAKE_HOST_LINUX)
         set(ENV_PATH                "${PROJ_CONDA_DIR}/bin:$ENV{PATH}")
         set(ENV_LD_LIBRARY_PATH     "${PROJ_CONDA_DIR}/lib:$ENV{LD_LIBRARY_PATH}")
-        set(ENV_VARS_OF_SYSTEM      PATH=${ENV_PATH})
-    elseif (CMAKE_HOST_WIN32)
-        set(ENV_PATH                "${PROJ_CONDA_DIR}/bin;$ENV{PATH}")
-        string(REPLACE ";" "\\\\;" ENV_PATH "${ENV_PATH}")
-        set(ENV_VARS_OF_SYSTEM      PATH=${ENV_PATH})
+        set(ENV_VARS_OF_SYSTEM      PATH=${ENV_PATH}
+                                    LD_LIBRARY_PATH=${ENV_LD_LIBRARY_PATH})
     else()
         message(FATAL_ERROR "Invalid OS platform. (${CMAKE_HOST_SYSTEM_NAME})")
     endif()
+    block(PROPAGATE MDBOOK_BOOK)
+        execute_process(
+            COMMAND ${Dasel_EXECUTABLE}
+                    --file book.toml
+                    --read toml
+                    --write json
+                    "book"
+            WORKING_DIRECTORY ${PROJ_OUT_REPO_BOOK_DIR}
+            RESULT_VARIABLE RES_VAR
+            OUTPUT_VARIABLE OUT_VAR OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_VARIABLE  ERR_VAR ERROR_STRIP_TRAILING_WHITESPACE)
+        if (RES_VAR EQUAL 0)
+            set(MDBOOK_BOOK "${OUT_VAR}")
+        else()
+            set(MDBOOK_BOOK "{}")
+        endif()
+        # Assign [book.language]
+        string(JSON MDBOOK_BOOK SET "${MDBOOK_BOOK}" "language" "\"${_LANGUAGE}\"")
+    endblock()
     block(PROPAGATE MDBOOK_OUTPUT)
         execute_process(
             COMMAND ${Dasel_EXECUTABLE}
@@ -111,30 +127,48 @@ foreach(_LANGUAGE ${LANGUAGE_LIST})
             OUTPUT_VARIABLE OUT_VAR OUTPUT_STRIP_TRAILING_WHITESPACE
             ERROR_VARIABLE  ERR_VAR ERROR_STRIP_TRAILING_WHITESPACE)
         if (RES_VAR EQUAL 0)
-            set(MDBOOK_OUTPUT_HTML "${OUT_VAR}")
+            set(MDBOOK_OUTPUT__HTML "${OUT_VAR}")
         else()
-            set(MDBOOK_OUTPUT_HTML "{}")
+            set(MDBOOK_OUTPUT__HTML "{}")
         endif()
-        string(JSON MDBOOK_OUTPUT SET "{}" "html" "${MDBOOK_OUTPUT_HTML}")
+        # Assign [output.html] only
+        string(JSON MDBOOK_OUTPUT SET "{}" "html" "${MDBOOK_OUTPUT__HTML}")
     endblock()
-    set(ENV_MDBOOK_OUTPUT                         "${MDBOOK_OUTPUT}")       # [output]
-    set(ENV_MDBOOK_BOOK__LANGUAGE                 "${_LANGUAGE}")           # [book.language]
-    set(ENV_MDBOOK_PREPROCESSOR__GETTEXT__AFTER   "[\"links\"]")            # [preprocessor.gettext.after]
-    set(ENV_MDBOOK_PREPROCESSOR__GETTEXT__PO_DIR  "${LOCALE_TO_BOOK_DIR}")  # [preprocessor.gettext.po-dir]
-    set(ENV_MDBOOK_PREPROCESSOR                   "{}")
-    set(ENV_VARS_OF_COMMON
-        MDBOOK_OUTPUT=${ENV_MDBOOK_OUTPUT}
-        MDBOOK_BOOK__LANGUAGE=${ENV_MDBOOK_BOOK__LANGUAGE}
-        MDBOOK_PREPROCESSOR__GETTEXT__AFTER=${ENV_MDBOOK_PREPROCESSOR__GETTEXT__AFTER}
-        MDBOOK_PREPROCESSOR__GETTEXT__PO_DIR=${ENV_MDBOOK_PREPROCESSOR__GETTEXT__PO_DIR}
-        # MDBOOK_PREPROCESSOR__ZED_DOCS_PREPROCESSOR=${ENV_MDBOOK_PREPROCESSOR__ZED_DOCS_PREPROCESSOR}
-        )
+    block(PROPAGATE MDBOOK_PREPROCESSOR)
+        execute_process(
+            COMMAND ${Dasel_EXECUTABLE}
+                    --file book.toml
+                    --read toml
+                    --write json
+                    "preprocessor"
+            WORKING_DIRECTORY ${PROJ_OUT_REPO_BOOK_DIR}
+            RESULT_VARIABLE RES_VAR
+            OUTPUT_VARIABLE OUT_VAR OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_VARIABLE  ERR_VAR ERROR_STRIP_TRAILING_WHITESPACE)
+        if (RES_VAR EQUAL 0)
+            set(MDBOOK_PREPROCESSOR "${OUT_VAR}")
+        else()
+            set(MDBOOK_PREPROCESSOR "{}")
+        endif()
+        # Remove [preprocessor.zed_docs_preprocessor]
+        string(JSON MDBOOK_PREPROCESSOR REMOVE "${MDBOOK_PREPROCESSOR}" "zed_docs_preprocessor")
+        # Assign [preprocessor.gettext]
+        set(MDBOOK_PREPROCESSOR__GETTEXT "{}")
+        string(JSON MDBOOK_PREPROCESSOR__GETTEXT SET "${MDBOOK_PREPROCESSOR__GETTEXT}" "after" "[\"links\"]")
+        string(JSON MDBOOK_PREPROCESSOR__GETTEXT SET "${MDBOOK_PREPROCESSOR__GETTEXT}" "po-dir" "\"${LOCALE_TO_BOOK_DIR}\"")
+        string(JSON MDBOOK_PREPROCESSOR SET "${MDBOOK_PREPROCESSOR}" "gettext" "${MDBOOK_PREPROCESSOR__GETTEXT}")
+    endblock()
+    set(ENV_MDBOOK_BOOK                 "${MDBOOK_BOOK}")           # [book]
+    set(ENV_MDBOOK_OUTPUT               "${MDBOOK_OUTPUT}")         # [output]
+    set(ENV_MDBOOK_PREPROCESSOR         "${MDBOOK_PREPROCESSOR}")   # [preprocessor]
+    set(ENV_VARS_OF_COMMON              MDBOOK_BOOK__LANGUAGE=${ENV_MDBOOK_BOOK__LANGUAGE}
+                                        MDBOOK_OUTPUT=${ENV_MDBOOK_OUTPUT}
+                                        MDBOOK_PREPROCESSOR=${ENV_MDBOOK_PREPROCESSOR})
     remove_cmake_message_indent()
     message("")
-    message("ENV_MDBOOK_OUTPUT                          = ${ENV_MDBOOK_OUTPUT}")
-    message("ENV_MDBOOK_BOOK__LANGUAGE                  = ${ENV_MDBOOK_BOOK__LANGUAGE}")
-    message("ENV_MDBOOK_PREPROCESSOR__GETTEXT__AFTER    = ${ENV_MDBOOK_PREPROCESSOR__GETTEXT__AFTER}")
-    message("ENV_MDBOOK_PREPROCESSOR__GETTEXT__PO_DIR   = ${ENV_MDBOOK_PREPROCESSOR__GETTEXT__PO_DIR}")
+    message("ENV_MDBOOK_BOOK            = ${ENV_MDBOOK_BOOK}")
+    message("ENV_MDBOOK_OUTPUT          = ${ENV_MDBOOK_OUTPUT}")
+    message("ENV_MDBOOK_PREPROCESSOR    = ${ENV_MDBOOK_PREPROCESSOR}")
     message("")
     message("mdbook build:")
     message("  ${PROJ_OUT_REPO_BOOK_DIR}")
@@ -144,7 +178,6 @@ foreach(_LANGUAGE ${LANGUAGE_LIST})
         COMMAND ${CMAKE_COMMAND} -E env
                 ${ENV_VARS_OF_SYSTEM}
                 ${ENV_VARS_OF_COMMON}
-                # MDBOOK_PREPROCESSOR__ZED__DOCS__PREPROCESSOR={}
                 ${mdBook_EXECUTABLE} build
                 ${PROJ_OUT_REPO_BOOK_DIR}
                 --dest-dir ${PROJ_OUT_RENDERER_DIR}/${_LANGTAG}/${VERSION}
