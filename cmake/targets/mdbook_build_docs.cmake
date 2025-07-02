@@ -72,6 +72,7 @@ foreach(_LANGUAGE ${LANGUAGE_LIST})
         OUT_JSON_VALUE      _LANGTAG)
 
 
+    # Removed if https://github.com/google/mdbook-i18n-helpers/issues/185 closed.
     if (NOT _LANGUAGE STREQUAL LANGUAGE_SOURCE)
         message(STATUS "Running 'msgcat' command to concatenate translations of '${VERSION}' version for '${_LANGUAGE}' language...")
         set(PO_LOCALE_DIR   "${PROJ_OUT_REPO_BOOK_LOCALE_DIR}/${_LANGUAGE}")
@@ -96,25 +97,6 @@ foreach(_LANGUAGE ${LANGUAGE_LIST})
     else()
         message(FATAL_ERROR "Invalid OS platform. (${CMAKE_HOST_SYSTEM_NAME})")
     endif()
-    block(PROPAGATE MDBOOK_BOOK)
-        execute_process(
-            COMMAND ${Dasel_EXECUTABLE}
-                    --file book.toml
-                    --read toml
-                    --write json
-                    "book"
-            WORKING_DIRECTORY ${PROJ_OUT_REPO_BOOK_DIR}
-            RESULT_VARIABLE RES_VAR
-            OUTPUT_VARIABLE OUT_VAR OUTPUT_STRIP_TRAILING_WHITESPACE
-            ERROR_VARIABLE  ERR_VAR ERROR_STRIP_TRAILING_WHITESPACE)
-        if (RES_VAR EQUAL 0)
-            set(MDBOOK_BOOK "${OUT_VAR}")
-        else()
-            set(MDBOOK_BOOK "{}")
-        endif()
-        # Assign [book.language]
-        string(JSON MDBOOK_BOOK SET "${MDBOOK_BOOK}" "language" "\"${_LANGUAGE}\"")
-    endblock()
     block(PROPAGATE MDBOOK_OUTPUT)
         execute_process(
             COMMAND ${Dasel_EXECUTABLE}
@@ -158,7 +140,7 @@ foreach(_LANGUAGE ${LANGUAGE_LIST})
         string(JSON MDBOOK_PREPROCESSOR__GETTEXT SET "${MDBOOK_PREPROCESSOR__GETTEXT}" "po-dir" "\"${LOCALE_TO_BOOK_DIR}\"")
         string(JSON MDBOOK_PREPROCESSOR SET "${MDBOOK_PREPROCESSOR}" "gettext" "${MDBOOK_PREPROCESSOR__GETTEXT}")
     endblock()
-    set(ENV_MDBOOK_BOOK                 "${MDBOOK_BOOK}")           # [book]
+    set(ENV_MDBOOK_BOOK__LANGUAGE       "${_LANGUAGE}")             # [book.language]
     set(ENV_MDBOOK_OUTPUT               "${MDBOOK_OUTPUT}")         # [output]
     set(ENV_MDBOOK_PREPROCESSOR         "${MDBOOK_PREPROCESSOR}")   # [preprocessor]
     set(ENV_VARS_OF_COMMON              MDBOOK_BOOK__LANGUAGE=${ENV_MDBOOK_BOOK__LANGUAGE}
@@ -166,7 +148,7 @@ foreach(_LANGUAGE ${LANGUAGE_LIST})
                                         MDBOOK_PREPROCESSOR=${ENV_MDBOOK_PREPROCESSOR})
     remove_cmake_message_indent()
     message("")
-    message("ENV_MDBOOK_BOOK            = ${ENV_MDBOOK_BOOK}")
+    message("ENV_MDBOOK_BOOK__LANGUAGE  = ${ENV_MDBOOK_BOOK__LANGUAGE}")
     message("ENV_MDBOOK_OUTPUT          = ${ENV_MDBOOK_OUTPUT}")
     message("ENV_MDBOOK_PREPROCESSOR    = ${ENV_MDBOOK_PREPROCESSOR}")
     message("")
