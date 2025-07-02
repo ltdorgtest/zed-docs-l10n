@@ -142,12 +142,12 @@ remove_cmake_message_indent()
 message("")
 execute_process(
     COMMAND ${Conda_EXECUTABLE} install
-            conda-forge::xorg-libx11
+            # conda-forge::xorg-libx11
             # conda-forge::libxcb-cos6-x86_64
             # conda-forge::libxcb-conda-x86_64
             # conda-forge::xorg-libxcb
-            conda-forge::clang=${VERSION_OF_CLANG}
-            conda-forge::mold=${VERSION_OF_MOLD}
+            # conda-forge::clang=${VERSION_OF_CLANG}
+            # conda-forge::mold=${VERSION_OF_MOLD}
             conda-forge::rust=${VERSION_OF_RUST}
             conda-forge::dasel=${VERSION_OF_DASEL}
             --channel conda-forge
