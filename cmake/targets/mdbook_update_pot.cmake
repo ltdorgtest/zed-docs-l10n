@@ -64,21 +64,6 @@ message("")
 restore_cmake_message_indent()
 
 
-# # https://github.com/zed-industries/zed/blob/908ae95cf86930893140bee37cf37c8918ac90e8/.cargo/ci-config.toml
-# # https://github.com/zed-industries/zed/blob/908ae95cf86930893140bee37cf37c8918ac90e8/.github/workflows/ci.yml#L232-L235
-# message(STATUS "Copying '.cargo/ci-config.toml' file to '.cargo/config.toml' file...")
-# file(MAKE_DIRECTORY "${PROJ_OUT_REPO_BOOK_THEME_DIR}")
-# file(COPY_FILE
-#     "${PROJ_OUT_REPO_DIR}/.cargo/ci-config.toml"
-#     "${PROJ_OUT_REPO_DIR}/.cargo/config.toml")
-# remove_cmake_message_indent()
-# message("")
-# message("From: ${PROJ_OUT_REPO_DIR}/.cargo/ci-config.toml")
-# message("To:   ${PROJ_OUT_REPO_DIR}/.cargo/config.toml")
-# message("")
-# restore_cmake_message_indent()
-
-
 message(STATUS "Copying 'head.hbs' file to the mdbook theme directory...")
 file(MAKE_DIRECTORY "${PROJ_OUT_REPO_BOOK_THEME_DIR}")
 file(COPY_FILE
@@ -103,9 +88,11 @@ endif()
 message(STATUS "Running 'mdbook build' command to generate .pot files...")
 if (CMAKE_HOST_LINUX)
     set(ENV_PATH                "${PROJ_CONDA_DIR}/bin:$ENV{PATH}")
+    set(ENV_LIBRARY_PATH        "${PROJ_CONDA_DIR}/lib:$ENV{LIBRARY_PATH}")
     set(ENV_LD_LIBRARY_PATH     "${PROJ_CONDA_DIR}/lib:$ENV{LD_LIBRARY_PATH}")
     set(ENV_CARGO_INSTALL_ROOT  "${PROJ_CONDA_DIR}")
     set(ENV_VARS_OF_SYSTEM      PATH=${ENV_PATH}
+                                LIBRARY_PATH=${ENV_LIBRARY_PATH}
                                 LD_LIBRARY_PATH=${ENV_LD_LIBRARY_PATH}
                                 CARGO_INSTALL_ROOT=${ENV_CARGO_INSTALL_ROOT})
 elseif (CMAKE_HOST_WIN32)
@@ -146,8 +133,8 @@ block(PROPAGATE MDBOOK_PREPROCESSOR)
     else()
         set(MDBOOK_PREPROCESSOR "{}")
     endif()
-    # Remove [preprocessor.zed_docs_preprocessor]
-    string(JSON MDBOOK_PREPROCESSOR REMOVE "${MDBOOK_PREPROCESSOR}" "zed_docs_preprocessor")
+    # # Remove [preprocessor.zed_docs_preprocessor]
+    # string(JSON MDBOOK_PREPROCESSOR REMOVE "${MDBOOK_PREPROCESSOR}" "zed_docs_preprocessor")
 endblock()
 set(ENV_MDBOOK_BOOK__SRC        "${MDBOOK_BOOK__SRC}")      # [book.src]
 set(ENV_MDBOOK_OUTPUT           "${MDBOOK_OUTPUT}")         # [output]

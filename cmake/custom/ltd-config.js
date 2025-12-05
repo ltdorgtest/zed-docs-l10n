@@ -7,7 +7,7 @@ var CONFIG_OPTIONS = {
     ["zh-tw",     "繁體中文"],
   ],
   CONFIG_VERSIONS: [
-    ["latest",    "Development"],
+    ["main",      "Development"],
   ],
   CONFIG_PROJECTS: [
     ["Home",      "https://projects.ltdorgtest.org/zed-docs-l10n"],

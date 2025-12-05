@@ -97,9 +97,11 @@ foreach(_LANGUAGE ${LANGUAGE_LIST})
     message(STATUS "Running 'mdbook build' command to build documentation for '${_LANGUAGE}' language...")
     if (CMAKE_HOST_LINUX)
         set(ENV_PATH                "${PROJ_CONDA_DIR}/bin:$ENV{PATH}")
+        set(ENV_LIBRARY_PATH        "${PROJ_CONDA_DIR}/lib:$ENV{LIBRARY_PATH}")
         set(ENV_LD_LIBRARY_PATH     "${PROJ_CONDA_DIR}/lib:$ENV{LD_LIBRARY_PATH}")
         set(ENV_CARGO_INSTALL_ROOT  "${PROJ_CONDA_DIR}")
         set(ENV_VARS_OF_SYSTEM      PATH=${ENV_PATH}
+                                    LIBRARY_PATH=${ENV_LIBRARY_PATH}
                                     LD_LIBRARY_PATH=${ENV_LD_LIBRARY_PATH}
                                     CARGO_INSTALL_ROOT=${ENV_CARGO_INSTALL_ROOT})
     elseif (CMAKE_HOST_WIN32)
@@ -154,8 +156,8 @@ foreach(_LANGUAGE ${LANGUAGE_LIST})
         else()
             set(MDBOOK_PREPROCESSOR "{}")
         endif()
-        # Remove [preprocessor.zed_docs_preprocessor]
-        string(JSON MDBOOK_PREPROCESSOR REMOVE "${MDBOOK_PREPROCESSOR}" "zed_docs_preprocessor")
+        # # Remove [preprocessor.zed_docs_preprocessor]
+        # string(JSON MDBOOK_PREPROCESSOR REMOVE "${MDBOOK_PREPROCESSOR}" "zed_docs_preprocessor")
         # Assign [preprocessor.gettext]
         set(MDBOOK_PREPROCESSOR__GETTEXT "{}")
         string(JSON MDBOOK_PREPROCESSOR__GETTEXT SET "${MDBOOK_PREPROCESSOR__GETTEXT}" "after"  "[\"links\"]")

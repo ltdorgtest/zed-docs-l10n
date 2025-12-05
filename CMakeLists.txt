@@ -61,9 +61,9 @@ set(MODE_OF_INSTALL "COMPARE"
     # (1) COMPARE:  Install the requirements only if the current reference is different than the previous one.
     # (2) ALWAYS:   Install the requirements even if the current reference is the same as    the previous one.
 
-set(MDBOOK_RENDERER "html"
+set(MDBOOK_RENDERER "zed-html"
     CACHE STRING "The renderer for the mdBook documentation system.")
-    # Possible values are "html".
+    # Possible values are "zed-html".
     # See https://rust-lang.github.io/mdBook/format/configuration/renderers.html for details.
 
 set(MDBOOK_XGETTEXT_DEPTH 5
@@ -203,7 +203,7 @@ if (NOT MODE_OF_INSTALL MATCHES "^(COMPARE|ALWAYS)$")
     message(FATAL_ERROR "Invalid MODE_OF_INSTALL value. (${MODE_OF_INSTALL})")
 endif()
 
-if (NOT MDBOOK_RENDERER MATCHES "^(html)$")
+if (NOT MDBOOK_RENDERER MATCHES "^(zed-html)$")
     message(FATAL_ERROR "Invalid MDBOOK_RENDERER value. (${MDBOOK_RENDERER})")
 endif()
 
