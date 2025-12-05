@@ -1,8 +1,8 @@
 [submodule "cmake/modules"]
 	path = cmake/modules
-	url = ../../ltdorgtest/cmake-modules.git
+	url = ../../ltdorgtest/modules.git
 	branch = main
-[submodule "cmake/flyout"]
-	path = cmake/flyout
-	url = ../../ltdorgtest/flyout.git
+[submodule "cmake/plugins"]
+	path = cmake/plugins
+	url = ../../ltdorgtest/plugins.git
 	branch = main
