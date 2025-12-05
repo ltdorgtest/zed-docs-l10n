@@ -23,11 +23,11 @@ set(LANGUAGE_SOURCE "en_US"
     CACHE STRING "The source language code of the documentation")
     # Possible values are "en_US".
 
-set(VERSION "latest"
+set(VERSION "main"
     CACHE STRING "The current version of the documentation.")
     # Possible values are versions listed in versions.json.
 
-set(VERSION_COMPENDIUM "latest"
+set(VERSION_COMPENDIUM "main"
     CACHE STRING "Version of compendium that the current version merges translations from.")
     # Possible values are NULL or versions listed in versions.json.
 
@@ -138,12 +138,12 @@ get_members_of_json_object(
 
 #[============================================================[
 # Validate the VERSION cache variable.
-# - For "latest":
+# - For "main":
 #   - Set VERSION_TYPE    to "branch"
 #   - Set BRANCH_NAME     to "main"
 #]============================================================]
 
-if     (VERSION MATCHES "^latest$")
+if     (VERSION MATCHES "^(main)$")
     set(VERSION_TYPE    "branch")
     set(BRANCH_NAME     "main")
 else()
@@ -159,7 +159,7 @@ if (LANGUAGE STREQUAL "all")
     set(LANGUAGE_IS_VALID TRUE)
 else()
     foreach(_LANGUAGE ${LANGUAGE_LIST})
-        if (LANGUAGE STREQUAL _LANGUAGE)
+        if (_LANGUAGE STREQUAL LANGUAGE)
             set(LANGUAGE_IS_VALID TRUE)
         endif()
     endforeach()
@@ -202,11 +202,11 @@ endif()
 # Set VERSION_OF_XXX to $CACHE{VERSION_OF_XX} if it's not "[default]".
 #]============================================================]
 
-if     (VERSION MATCHES "^(latest)$")
+if     (VERSION MATCHES "^(main)$")
     set(VERSION_OF_RUST                 "1.91")
     set(VERSION_OF_DASEL                "2")
-    set(VERSION_OF_MDBOOK               "0.4.40")
-    set(VERSION_OF_MDBOOK_I18N_HELPERS   "0.3.6")
+    set(VERSION_OF_MDBOOK               "0.4.40") # [required]
+    set(VERSION_OF_MDBOOK_I18N_HELPERS  "0.3.6")
 else()
     message(FATAL_ERROR "Invalid VERSION value. (${VERSION})")
 endif()

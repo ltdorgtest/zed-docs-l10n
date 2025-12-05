@@ -131,10 +131,8 @@ block(PROPAGATE MDBOOK_PREPROCESSOR)
     else()
         set(MDBOOK_PREPROCESSOR "{}")
     endif()
-    if (FALSE)
-        # Remove [preprocessor.zed_docs_preprocessor]
-        string(JSON MDBOOK_PREPROCESSOR REMOVE "${MDBOOK_PREPROCESSOR}" "zed_docs_preprocessor")
-    endif()
+    # Remove [preprocessor.zed_docs_preprocessor]
+    string(JSON MDBOOK_PREPROCESSOR REMOVE "${MDBOOK_PREPROCESSOR}" "zed_docs_preprocessor")
 endblock()
 set(ENV_MDBOOK_OUTPUT               "${MDBOOK_OUTPUT}")
 set(ENV_MDBOOK_PREPROCESSOR         "${MDBOOK_PREPROCESSOR}")
