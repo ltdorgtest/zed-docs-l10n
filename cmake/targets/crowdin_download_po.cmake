@@ -9,6 +9,8 @@ message(STATUS "-------------------- ${SCRIPT_NAME} --------------------")
 
 
 set(CMAKE_MODULE_PATH   "${PROJ_CMAKE_MODULES_DIR}")
+set(CMAKE_PROGRAM_PATH  "${PROJ_CONDA_DIR}"
+                        "${PROJ_CONDA_DIR}/Library")
 find_package(Gettext    MODULE REQUIRED COMPONENTS Msgmerge)
 find_package(Crowdin    MODULE REQUIRED)
 include(LogUtils)
@@ -77,7 +79,7 @@ foreach(_LANGUAGE ${LANGUAGE_LIST})
                 --language=${_LANGUAGE_CROWDIN}
                 --branch=${VERSION}
                 --config=${CROWDIN_YML_PATH}
-                --export-only-approved
+                # --export-only-approved
                 --no-progress
                 --verbose
         WORKING_DIRECTORY ${PROJ_L10N_VERSION_DIR}

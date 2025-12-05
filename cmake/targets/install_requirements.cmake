@@ -180,28 +180,27 @@ restore_cmake_message_indent()
 
 
 message(STATUS "Running 'conda install' command to install dependencies...")
+if (ENABLE_DOCS_PREPROCESSOR)
+    set(DOCS_PREPROCESSOR_DEPS
+        # https://github.com/zed-industries/zed/blob/main/script/linux
+        conda-forge::git
+        conda-forge::gcc
+        conda-forge::gxx
+        conda-forge::binutils
+        conda-forge::clang
+        conda-forge::mold
+        conda-forge::xorg-libx11  # /usr/bin/ld: cannot find -lX11-xcb: No such file or directory
+        conda-forge::xorg-libxcb
+        conda-forge::libxcb       # Additional XCB library support
+    )
+endif()
 remove_cmake_message_indent()
 message("")
 execute_process(
     COMMAND ${Conda_EXECUTABLE} install
-            # conda-forge::xorg-libx11
-            # conda-forge::libxcb-cos6-x86_64
-            # conda-forge::libxcb-conda-x86_64
-            # conda-forge::xorg-libxcb
-            # conda-forge::clang=${VERSION_OF_CLANG}
-            # conda-forge::mold=${VERSION_OF_MOLD}
             conda-forge::rust=${VERSION_OF_RUST}
             conda-forge::dasel=${VERSION_OF_DASEL}
-            conda-forge::mold
-            # https://github.com/zed-industries/zed/blob/main/script/linux
-            conda-forge::git
-            conda-forge::gcc
-            conda-forge::gxx
-            conda-forge::binutils
-            conda-forge::clang
-            conda-forge::xorg-libx11  # /usr/bin/ld: cannot find -lX11-xcb: No such file or directory
-            conda-forge::xorg-libxcb
-            conda-forge::libxcb  # Additional XCB library support
+            ${DOCS_PREPROCESSOR_DEPS}
             --channel conda-forge
             --prefix ${PROJ_CONDA_DIR}
             --yes
@@ -232,14 +231,24 @@ restore_cmake_message_indent()
 find_package(Rust       MODULE REQUIRED COMPONENTS Cargo)
 
 
-message(STATUS "Running 'cargo install' command to the specified packages...")
+message(STATUS "Running 'cargo install' command to the requirements...")
 if (CMAKE_HOST_LINUX)
     set(ENV_PATH                "${PROJ_CONDA_DIR}/bin:$ENV{PATH}")
-    set(ENV_VARS_OF_SYSTEM      PATH=${ENV_PATH})
+    set(ENV_LD_LIBRARY_PATH     "${PROJ_CONDA_DIR}/lib:$ENV{LD_LIBRARY_PATH}")
+    set(ENV_CARGO_INSTALL_ROOT  "${PROJ_CONDA_DIR}")
+    set(ENV_VARS_OF_SYSTEM      PATH=${ENV_PATH}
+                                LD_LIBRARY_PATH=${ENV_LD_LIBRARY_PATH}
+                                CARGO_INSTALL_ROOT=${ENV_CARGO_INSTALL_ROOT})
 elseif (CMAKE_HOST_WIN32)
-    set(ENV_PATH                "${PROJ_CONDA_DIR}/bin;$ENV{PATH}")
+    set(ENV_PATH                "${PROJ_CONDA_DIR}/bin"
+                                "${PROJ_CONDA_DIR}/Scripts"
+                                "${PROJ_CONDA_DIR}/Library/bin"
+                                "${PROJ_CONDA_DIR}"
+                                "$ENV{PATH}")
+    set(ENV_CARGO_INSTALL_ROOT  "${PROJ_CONDA_DIR}/Library")
     string(REPLACE ";" "\\\\;" ENV_PATH "${ENV_PATH}")
-    set(ENV_VARS_OF_SYSTEM      PATH=${ENV_PATH})
+    set(ENV_VARS_OF_SYSTEM      PATH=${ENV_PATH}
+                                CARGO_INSTALL_ROOT=${ENV_CARGO_INSTALL_ROOT})
 else()
     message(FATAL_ERROR "Invalid OS platform. (${CMAKE_HOST_SYSTEM_NAME})")
 endif()
@@ -266,7 +275,6 @@ execute_process(
             ${Rust_CARGO_EXECUTABLE} install
             ${CRATE_OF_MDBOOK}
             ${CRATE_OF_MDBOOK_I18N_HELPERS}
-            --root ${PROJ_CONDA_DIR}
     ECHO_OUTPUT_VARIABLE
     ECHO_ERROR_VARIABLE
     RESULT_VARIABLE RES_VAR
@@ -401,17 +409,26 @@ if (FALSE)
 endif()
 
 
-message(STATUS "The followings are the installed packages in Conda environment...")
+message(STATUS "The followings are the cargo-installed packages in the Conda environment...")
+if (CMAKE_HOST_LINUX)
+    set(CARGO_INSTALL_ROOT  "${PROJ_CONDA_DIR}")
+elseif (CMAKE_HOST_WIN32)
+    set(CARGO_INSTALL_ROOT  "${PROJ_CONDA_DIR}/Library")
+else()
+    message(FATAL_ERROR "Invalid OS platform. (${CMAKE_HOST_SYSTEM_NAME})")
+endif()
 execute_process(
-    COMMAND ${Conda_EXECUTABLE} list --export --prefix ${PROJ_CONDA_DIR}
+    COMMAND ${Rust_CARGO_EXECUTABLE} install --list --root ${CARGO_INSTALL_ROOT}
     RESULT_VARIABLE RES_VAR
     OUTPUT_VARIABLE OUT_VAR OUTPUT_STRIP_TRAILING_WHITESPACE
     ERROR_VARIABLE  ERR_VAR ERROR_STRIP_TRAILING_WHITESPACE)
 remove_cmake_message_indent()
 message("")
+message("${CARGO_INSTALL_ROOT}")
+message("")
 if (RES_VAR EQUAL 0)
-    set(INSTALLED_PACKAGES  "${OUT_VAR}")
-    message("${INSTALLED_PACKAGES}")
+    set(CARGO_INSTALLED_PACKAGES  "${OUT_VAR}")
+    message("${CARGO_INSTALLED_PACKAGES}")
     if (ERR_VAR)
         string(APPEND WARNING_REASON
         "The command succeeded with warnings.\n\n"
@@ -430,5 +447,6 @@ message("")
 restore_cmake_message_indent()
 
 
-file(WRITE "${PREV_REFERENCE_TXT_PATH}" "${CURRENT_REFERENCE}")
-file(WRITE "${PREV_PACKAGES_TXT_PATH}"  "${INSTALLED_PACKAGES}")
+file(WRITE "${PREV_REFERENCE_TXT_PATH}"       "${CURRENT_REFERENCE}")
+file(WRITE "${PREV_CONDA_PACKAGES_TXT_PATH}"  "${CONDA_INSTALLED_PACKAGES}")
+file(WRITE "${PREV_CARGO_PACKAGES_TXT_PATH}"  "${CARGO_INSTALLED_PACKAGES}")

@@ -1,26 +1,35 @@
 # Distributed under the OSI-approved BSD 3-Clause License.
-# See accompanying file LICENSE.txt for details.
+# See accompanying file LICENSE-BSD for details.
 
 cmake_minimum_required(VERSION 3.25)
-project(zed-docs-l10n NONE)
+project(mdbook-docs-l10n NONE)
 
 #[============================================================[
-# Constants.
+# Environment Variables.
 #]============================================================]
 
 set(ENV_LANG              "en_US.UTF-8")
 set(ENV_LANGUAGE          "en_US")
 
 #[============================================================[
+# CMP<NNNN> Defaults.
+#]============================================================]
+
+if (POLICY CMP0144)
+    cmake_policy(SET CMP0144 NEW)
+    cmake_policy(GET CMP0144 CMAKE_POLICY_DEFAULT_CMP0144)
+endif()
+
+#[============================================================[
 # Cache Variables.
 #]============================================================]
 
 set(LANGUAGE "all"
-    CACHE STRING "The language code of the documentation.")
+    CACHE STRING "The language of the documentation.")
     # Possible values are "all" and languages listed in languages.json.
 
 set(LANGUAGE_SOURCE "en_US"
-    CACHE STRING "The source language code of the documentation")
+    CACHE STRING "The source language of the documentation")
     # Possible values are "en_US".
 
 set(VERSION "main"
@@ -28,8 +37,8 @@ set(VERSION "main"
     # Possible values are versions listed in versions.json.
 
 set(VERSION_COMPENDIUM "main"
-    CACHE STRING "Version of compendium that the current version merges translations from.")
-    # Possible values are NULL or versions listed in versions.json.
+    CACHE STRING "The version of compendium from which the current version will merge translations.")
+    # Possible values are NULL and versions listed in versions.json.
 
 set(AUTO_DEPEND ON
     CACHE BOOL "Whether to enable automatic dependency management for specific build targets.")
@@ -55,12 +64,20 @@ set(MODE_OF_INSTALL "COMPARE"
 set(MDBOOK_RENDERER "html"
     CACHE STRING "The renderer for the mdBook documentation system.")
     # Possible values are "html".
+    # See https://rust-lang.github.io/mdBook/format/configuration/renderers.html for details.
 
 set(MDBOOK_XGETTEXT_DEPTH 5
-    CACHE STRING "The Gettext mdBook depth, passed to xgettext.depth")
+    CACHE STRING "The tree depth at which to split the generated .pot files.")
+    # Possible values are positive integers.
+    # Passed to override the 'output.xgettext.depth' configuration.
+    # See https://github.com/google/mdbook-i18n-helpers/blob/main/i18n-helpers/USAGE.md for details.
 
 set(GETTEXT_WRAP_WIDTH 79
-    CACHE STRING "The Gettext wrap width for .pot/.po files.")
+    CACHE STRING "The maximum width for wraping .pot and .po files.")
+    # Possible values are positive integers.
+    # Passed to msgcat and msgmerge as --width=${GETTEXT_WRAP_WIDTH}.
+    # See https://www.gnu.org/software/gettext/manual/html_node/msgcat-Invocation.html
+    # and https://www.gnu.org/software/gettext/manual/html_node/msgmerge-Invocation.html for details.
 
 set(REMOTE_URL_OF_L10N "https://github.com/ltdorgtest/zed-docs-l10n.git"
     CACHE STRING "The remote URL of the 'l10n' repository.")
@@ -112,7 +129,8 @@ set(PROJ_L10N_VERSION_CROWDIN_DIR   "${PROJ_L10N_VERSION_DIR}/.crowdin")
 #]============================================================]
 
 set(LANGUAGES_JSON_PATH             "${PROJ_SOURCE_DIR}/languages.json")
-set(PREV_PACKAGES_TXT_PATH          "${PROJ_CONDA_DIR}/prev/packages.txt")
+set(PREV_CONDA_PACKAGES_TXT_PATH    "${PROJ_CONDA_DIR}/prev/conda-packages.txt")
+set(PREV_CARGO_PACKAGES_TXT_PATH    "${PROJ_CONDA_DIR}/prev/cargo-packages.txt")
 set(PREV_REFERENCE_TXT_PATH         "${PROJ_CONDA_DIR}/prev/reference.txt")
 set(REFERENCES_JSON_PATH            "${PROJ_L10N_VERSION_DIR}/references.json")
 set(STATISTICS_TXT_PATH             "${PROJ_L10N_VERSION_DIR}/statistics.txt")
@@ -199,7 +217,7 @@ endif()
 
 #[============================================================[
 # Initialize VERSION_OF_XXX if CACHE{VERSION_OF_XXX} is "[default]".
-# Set VERSION_OF_XXX to $CACHE{VERSION_OF_XX} if it's not "[default]".
+# Set VERSION_OF_XXX to $CACHE{VERSION_OF_XXX} if it's not "[default]".
 #]============================================================]
 
 if     (VERSION MATCHES "^(main)$")
@@ -216,16 +234,19 @@ endif()
 if (NOT "$CACHE{VERSION_OF_DASEL}" STREQUAL "[default]")
     set(VERSION_OF_DASEL "$CACHE{VERSION_OF_DASEL}")
 endif()
-if (NOT "$CACHE{VERSION_OF_MDBOOK}" STREQUAL "[default]")
-    set(VERSION_OF_MDBOOK "$CACHE{VERSION_OF_MDBOOK}")
-endif()
 if (NOT "$CACHE{VERSION_OF_MDBOOK_I18N_HELPERS}" STREQUAL "[default]")
     set(VERSION_OF_MDBOOK_I18N_HELPERS "$CACHE{VERSION_OF_MDBOOK_I18N_HELPERS}")
 endif()
 
 #[============================================================[
-# Prepare LOCALE_TO_BOOK_DIR for 'mdbook_build_docs' taget.
+# Prepare SRC_TO_BOOK_DIR    for 'mdbook_update_pot' and
+                                 'mdbook_build_docs' targets.
+# Prepare LOCALE_TO_BOOK_DIR for 'mdbook_build_docs' target.
 #]============================================================]
+
+file(RELATIVE_PATH SRC_TO_BOOK_DIR
+    "${PROJ_OUT_REPO_BOOK_DIR}"
+    "${PROJ_OUT_REPO_BOOK_SRC_DIR}")
 
 file(RELATIVE_PATH LOCALE_TO_BOOK_DIR
     "${PROJ_OUT_REPO_BOOK_DIR}"
@@ -235,10 +256,10 @@ file(RELATIVE_PATH LOCALE_TO_BOOK_DIR
 # Check prerequisites.
 #]============================================================]
 
-find_package(Git      MODULE QUIET)
-find_package(Cargo    MODULE QUIET)
-find_package(Gettext  MODULE QUIET)
-find_package(Crowdin  MODULE QUIET)
+find_package(Git        MODULE QUIET)
+find_package(Conda      MODULE QUIET)
+find_package(Gettext    MODULE QUIET)
+find_package(Crowdin    MODULE QUIET)
 
 #[============================================================[
 # Create Git Worktree for 'l10n' branch in ${PROJ_L10N_DIR}.
@@ -272,9 +293,11 @@ file(COPY_FILE
 # Print Information.
 #]============================================================]
 
-message(STATUS "---------- Constants ----------")
+message(STATUS "---------- Environment Variables ----------")
 message(STATUS "ENV_LANG                        = ${ENV_LANG}")
 message(STATUS "ENV_LANGUAGE                    = ${ENV_LANGUAGE}")
+message(STATUS "---------- CMP<NNNN> Defaults ----------")
+message(STATUS "CMAKE_POLICY_DEFAULT_CMP0144    = ${CMAKE_POLICY_DEFAULT_CMP0144}")
 message(STATUS "---------- Cache Variables ----------")
 message(STATUS "LANGUAGE                        = ${LANGUAGE}")
 message(STATUS "LANGUAGE_SOURCE                 = ${LANGUAGE_SOURCE}")
@@ -284,16 +307,16 @@ message(STATUS "AUTO_DEPEND                     = ${AUTO_DEPEND}")
 message(STATUS "REMOVE_REDUNDANT                = ${REMOVE_REDUNDANT}")
 message(STATUS "MODE_OF_UPDATE                  = ${MODE_OF_UPDATE}")
 message(STATUS "MODE_OF_INSTALL                 = ${MODE_OF_INSTALL}")
-message(STATUS "REMOTE_URL_OF_L10N              = ${REMOTE_URL_OF_L10N}")
-message(STATUS "REMOTE_URL_OF_DOCS              = ${REMOTE_URL_OF_DOCS}")
-message(STATUS "BASEURL_HREF                    = ${BASEURL_HREF}")
 message(STATUS "MDBOOK_RENDERER                 = ${MDBOOK_RENDERER}")
 message(STATUS "MDBOOK_XGETTEXT_DEPTH           = ${MDBOOK_XGETTEXT_DEPTH}")
 message(STATUS "GETTEXT_WRAP_WIDTH              = ${GETTEXT_WRAP_WIDTH}")
-message(STATUS "VERSION_OF_RUST                 = ${VERSION_OF_RUST}")
-message(STATUS "VERSION_OF_DASEL                = ${VERSION_OF_DASEL}")
-message(STATUS "VERSION_OF_MDBOOK               = ${VERSION_OF_MDBOOK}")
-message(STATUS "VERSION_OF_MDBOOK_I18N_HELPERS  = ${VERSION_OF_MDBOOK_I18N_HELPERS}")
+message(STATUS "REMOTE_URL_OF_L10N              = ${REMOTE_URL_OF_L10N}")
+message(STATUS "REMOTE_URL_OF_DOCS              = ${REMOTE_URL_OF_DOCS}")
+message(STATUS "BASEURL_HREF                    = ${BASEURL_HREF}")
+message(STATUS "VERSION_OF_RUST                 = ${VERSION_OF_RUST} (CACHE: $CACHE{VERSION_OF_RUST})")
+message(STATUS "VERSION_OF_DASEL                = ${VERSION_OF_DASEL} (CACHE: $CACHE{VERSION_OF_DASEL})")
+message(STATUS "VERSION_OF_MDBOOK               = ${VERSION_OF_MDBOOK} (CACHE: $CACHE{VERSION_OF_MDBOOK})")
+message(STATUS "VERSION_OF_MDBOOK_I18N_HELPERS  = ${VERSION_OF_MDBOOK_I18N_HELPERS} (CACHE: $CACHE{VERSION_OF_MDBOOK_I18N_HELPERS})")
 message(STATUS "---------- Directory-Related Variables ----------")
 message(STATUS "PROJ_SOURCE_DIR                 = ${PROJ_SOURCE_DIR}")
 message(STATUS "PROJ_BINARY_DIR                 = ${PROJ_BINARY_DIR}")
@@ -316,12 +339,14 @@ message(STATUS "PROJ_L10N_VERSION_SINGLE_DIR    = ${PROJ_L10N_VERSION_SINGLE_DIR
 message(STATUS "PROJ_L10N_VERSION_CROWDIN_DIR   = ${PROJ_L10N_VERSION_CROWDIN_DIR}")
 message(STATUS "---------- Configuration Files ----------")
 message(STATUS "LANGUAGES_JSON_PATH             = ${LANGUAGES_JSON_PATH}")
-message(STATUS "PREV_PACKAGES_TXT_PATH          = ${PREV_PACKAGES_TXT_PATH}")
+message(STATUS "PREV_CONDA_PACKAGES_TXT_PATH    = ${PREV_CONDA_PACKAGES_TXT_PATH}")
+message(STATUS "PREV_CARGO_PACKAGES_TXT_PATH    = ${PREV_CARGO_PACKAGES_TXT_PATH}")
 message(STATUS "PREV_REFERENCE_TXT_PATH         = ${PREV_REFERENCE_TXT_PATH}")
 message(STATUS "REFERENCES_JSON_PATH            = ${REFERENCES_JSON_PATH}")
 message(STATUS "STATISTICS_TXT_PATH             = ${STATISTICS_TXT_PATH}")
 message(STATUS "CROWDIN_YML_PATH                = ${CROWDIN_YML_PATH}")
 message(STATUS "---------- Other Variables ----------")
+message(STATUS "SRC_TO_BOOK_DIR                 = ${SRC_TO_BOOK_DIR}")
 message(STATUS "LOCALE_TO_BOOK_DIR              = ${LOCALE_TO_BOOK_DIR}")
 message(STATUS "LANGUAGE_LIST                   = ${LANGUAGE_LIST}")
 message(STATUS "VERSION_TYPE                    = ${VERSION_TYPE}")
@@ -335,6 +360,9 @@ message(STATUS "CMAKE_GENERATOR                 = ${CMAKE_GENERATOR}")
 message(STATUS "Git_FOUND                       = ${Git_FOUND}")
 message(STATUS "Git_VERSION                     = ${Git_VERSION}")
 message(STATUS "Git_EXECUTABLE                  = ${Git_EXECUTABLE}")
+message(STATUS "Conda_FOUND                     = ${Conda_FOUND}")
+message(STATUS "Conda_VERSION                   = ${Conda_VERSION}")
+message(STATUS "Conda_EXECUTABLE                = ${Conda_EXECUTABLE}")
 message(STATUS "Gettext_FOUND                   = ${Gettext_FOUND}")
 message(STATUS "Gettext_VERSION                 = ${Gettext_VERSION}")
 message(STATUS "Gettext_XGETTEXT_EXECUTABLE     = ${Gettext_XGETTEXT_EXECUTABLE}")
@@ -362,9 +390,8 @@ set(SCRIPT_MODE_ENV
 #]============================================================]
 
 set(SCRIPT_MODE_CACHE
-    # [Constants]
-    -D ENV_LANG=${ENV_LANG}
-    -D ENV_LANGUAGE=${ENV_LANGUAGE}
+    # [CMP<NNNN> Defaults]
+    -D CMAKE_POLICY_DEFAULT_CMP0144=${CMAKE_POLICY_DEFAULT_CMP0144}
     # [Cache Variables]
     -D LANGUAGE=${LANGUAGE}
     -D LANGUAGE_SOURCE=${LANGUAGE_SOURCE}
@@ -406,12 +433,14 @@ set(SCRIPT_MODE_CACHE
     -D PROJ_L10N_VERSION_CROWDIN_DIR=${PROJ_L10N_VERSION_CROWDIN_DIR}
     # [Configuration Files]
     -D LANGUAGES_JSON_PATH=${LANGUAGES_JSON_PATH}
-    -D PREV_PACKAGES_TXT_PATH=${PREV_PACKAGES_TXT_PATH}
+    -D PREV_CONDA_PACKAGES_TXT_PATH=${PREV_CONDA_PACKAGES_TXT_PATH}
+    -D PREV_CARGO_PACKAGES_TXT_PATH=${PREV_CARGO_PACKAGES_TXT_PATH}
     -D PREV_REFERENCE_TXT_PATH=${PREV_REFERENCE_TXT_PATH}
     -D REFERENCES_JSON_PATH=${REFERENCES_JSON_PATH}
     -D STATISTICS_TXT_PATH=${STATISTICS_TXT_PATH}
     -D CROWDIN_YML_PATH=${CROWDIN_YML_PATH}
     # [Other Variables]
+    -D SRC_TO_BOOK_DIR=${SRC_TO_BOOK_DIR}
     -D LOCALE_TO_BOOK_DIR=${LOCALE_TO_BOOK_DIR}
     -D LANGUAGE_LIST=${LANGUAGE_LIST}
     -D VERSION_TYPE=${VERSION_TYPE}
@@ -469,22 +498,28 @@ add_custom_target(gettext_compendium
             -P ${PROJ_CMAKE_TARGETS_DIR}/gettext_compendium.cmake
     VERBATIM)
 
-add_custom_target(crowdin_upload_po
-    COMMAND ${CMAKE_COMMAND} -E env ${SCRIPT_MODE_ENV}
-            ${CMAKE_COMMAND} ${SCRIPT_MODE_CACHE}
-            -P ${PROJ_CMAKE_TARGETS_DIR}/crowdin_upload_po.cmake
-    VERBATIM)
-
 add_custom_target(crowdin_upload_pot
     COMMAND ${CMAKE_COMMAND} -E env ${SCRIPT_MODE_ENV}
             ${CMAKE_COMMAND} ${SCRIPT_MODE_CACHE}
             -P ${PROJ_CMAKE_TARGETS_DIR}/crowdin_upload_pot.cmake
     VERBATIM)
 
+add_custom_target(crowdin_upload_po
+    COMMAND ${CMAKE_COMMAND} -E env ${SCRIPT_MODE_ENV}
+            ${CMAKE_COMMAND} ${SCRIPT_MODE_CACHE}
+            -P ${PROJ_CMAKE_TARGETS_DIR}/crowdin_upload_po.cmake
+    VERBATIM)
+
 add_custom_target(crowdin_download_po
     COMMAND ${CMAKE_COMMAND} -E env ${SCRIPT_MODE_ENV}
             ${CMAKE_COMMAND} ${SCRIPT_MODE_CACHE}
             -P ${PROJ_CMAKE_TARGETS_DIR}/crowdin_download_po.cmake
+    VERBATIM)
+
+add_custom_target(create_rtd_symlinks
+    COMMAND ${CMAKE_COMMAND} -E env ${SCRIPT_MODE_ENV}
+            ${CMAKE_COMMAND} ${SCRIPT_MODE_CACHE}
+            -P ${PROJ_CMAKE_TARGETS_DIR}/create_rtd_symlinks.cmake
     VERBATIM)
 
 #[============================================================[

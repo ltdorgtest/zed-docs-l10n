@@ -14,7 +14,7 @@ set(CMAKE_PROGRAM_PATH  "${PROJ_CONDA_DIR}"
 find_package(Git        MODULE REQUIRED)
 find_package(Gettext    MODULE REQUIRED COMPONENTS Msgcat Msgmerge)
 find_package(Dasel      MODULE REQUIRED)
-find_package(mdBook     MODULE REQUIRED)
+find_package(mdBook     MODULE REQUIRED COMPONENTS mdBook)
 include(LogUtils)
 include(JsonUtils)
 include(GettextUtils)
@@ -72,8 +72,14 @@ foreach(_LANGUAGE ${LANGUAGE_LIST})
         OUT_JSON_VALUE      _LANGTAG)
 
 
-    # Removed if https://github.com/google/mdbook-i18n-helpers/issues/185 closed.
     if (NOT _LANGUAGE STREQUAL LANGUAGE_SOURCE)
+        # TODO: Remove the following lines once mdbook-i18n-helpers supports multiple .po files.
+        #
+        # Currently, mdbook-i18n-helpers cannot translate the book with a tree of .po files.
+        # Therefore, we need to concatenate all .po files for each language into a single
+        # file using msgcat before mdbook can process the translations.
+        #
+        # See https://github.com/google/mdbook-i18n-helpers/issues/185 for details.
         message(STATUS "Running 'msgcat' command to concatenate translations of '${VERSION}' version for '${_LANGUAGE}' language...")
         set(PO_LOCALE_DIR   "${PROJ_OUT_REPO_BOOK_LOCALE_DIR}/${_LANGUAGE}")
         set(PO_SINGLE_FILE  "${PROJ_OUT_REPO_BOOK_LOCALE_DIR}/${_LANGUAGE}.po")
@@ -92,29 +98,45 @@ foreach(_LANGUAGE ${LANGUAGE_LIST})
     if (CMAKE_HOST_LINUX)
         set(ENV_PATH                "${PROJ_CONDA_DIR}/bin:$ENV{PATH}")
         set(ENV_LD_LIBRARY_PATH     "${PROJ_CONDA_DIR}/lib:$ENV{LD_LIBRARY_PATH}")
+        set(ENV_CARGO_INSTALL_ROOT  "${PROJ_CONDA_DIR}")
         set(ENV_VARS_OF_SYSTEM      PATH=${ENV_PATH}
-                                    LD_LIBRARY_PATH=${ENV_LD_LIBRARY_PATH})
+                                    LD_LIBRARY_PATH=${ENV_LD_LIBRARY_PATH}
+                                    CARGO_INSTALL_ROOT=${ENV_CARGO_INSTALL_ROOT})
+    elseif (CMAKE_HOST_WIN32)
+        set(ENV_PATH                "${PROJ_CONDA_DIR}/bin"
+                                    "${PROJ_CONDA_DIR}/Scripts"
+                                    "${PROJ_CONDA_DIR}/Library/bin"
+                                    "${PROJ_CONDA_DIR}"
+                                    "$ENV{PATH}")
+        set(ENV_CARGO_INSTALL_ROOT  "${PROJ_CONDA_DIR}/Library")
+        string(REPLACE ";" "\\\\;" ENV_PATH "${ENV_PATH}")
+        set(ENV_VARS_OF_SYSTEM      PATH=${ENV_PATH}
+                                    CARGO_INSTALL_ROOT=${ENV_CARGO_INSTALL_ROOT})
     else()
         message(FATAL_ERROR "Invalid OS platform. (${CMAKE_HOST_SYSTEM_NAME})")
     endif()
+    block(PROPAGATE MDBOOK_BOOK__SRC
+                    MDBOOK_BOOK__LANGUAGE)
+        set(MDBOOK_BOOK__SRC        "${SRC_TO_BOOK_DIR}")
+        set(MDBOOK_BOOK__LANGUAGE   "${_LANGUAGE}")
+    endblock()
     block(PROPAGATE MDBOOK_OUTPUT)
         execute_process(
             COMMAND ${Dasel_EXECUTABLE}
                     --file book.toml
                     --read toml
                     --write json
-                    "output.html"
+                    "output.${MDBOOK_RENDERER}"
             WORKING_DIRECTORY ${PROJ_OUT_REPO_BOOK_DIR}
             RESULT_VARIABLE RES_VAR
             OUTPUT_VARIABLE OUT_VAR OUTPUT_STRIP_TRAILING_WHITESPACE
             ERROR_VARIABLE  ERR_VAR ERROR_STRIP_TRAILING_WHITESPACE)
         if (RES_VAR EQUAL 0)
-            set(MDBOOK_OUTPUT__HTML "${OUT_VAR}")
+            set(MDBOOK_OUTPUT__RENDERER "${OUT_VAR}")
         else()
-            set(MDBOOK_OUTPUT__HTML "{}")
+            set(MDBOOK_OUTPUT__RENDERER "{}")
         endif()
-        # Assign [output.html] only
-        string(JSON MDBOOK_OUTPUT SET "{}" "html" "${MDBOOK_OUTPUT__HTML}")
+        string(JSON MDBOOK_OUTPUT SET "{}" "${MDBOOK_RENDERER}" "${MDBOOK_OUTPUT__RENDERER}")
     endblock()
     block(PROPAGATE MDBOOK_PREPROCESSOR)
         execute_process(
@@ -136,18 +158,21 @@ foreach(_LANGUAGE ${LANGUAGE_LIST})
         string(JSON MDBOOK_PREPROCESSOR REMOVE "${MDBOOK_PREPROCESSOR}" "zed_docs_preprocessor")
         # Assign [preprocessor.gettext]
         set(MDBOOK_PREPROCESSOR__GETTEXT "{}")
-        string(JSON MDBOOK_PREPROCESSOR__GETTEXT SET "${MDBOOK_PREPROCESSOR__GETTEXT}" "after" "[\"links\"]")
+        string(JSON MDBOOK_PREPROCESSOR__GETTEXT SET "${MDBOOK_PREPROCESSOR__GETTEXT}" "after"  "[\"links\"]")
         string(JSON MDBOOK_PREPROCESSOR__GETTEXT SET "${MDBOOK_PREPROCESSOR__GETTEXT}" "po-dir" "\"${LOCALE_TO_BOOK_DIR}\"")
         string(JSON MDBOOK_PREPROCESSOR          SET "${MDBOOK_PREPROCESSOR}" "gettext" "${MDBOOK_PREPROCESSOR__GETTEXT}")
     endblock()
-    set(ENV_MDBOOK_BOOK__LANGUAGE       "${_LANGUAGE}")             # [book.language]
-    set(ENV_MDBOOK_OUTPUT               "${MDBOOK_OUTPUT}")         # [output]
-    set(ENV_MDBOOK_PREPROCESSOR         "${MDBOOK_PREPROCESSOR}")   # [preprocessor]
-    set(ENV_VARS_OF_COMMON              MDBOOK_BOOK__LANGUAGE=${ENV_MDBOOK_BOOK__LANGUAGE}
-                                        MDBOOK_OUTPUT=${ENV_MDBOOK_OUTPUT}
-                                        MDBOOK_PREPROCESSOR=${ENV_MDBOOK_PREPROCESSOR})
+    set(ENV_MDBOOK_BOOK__SRC        "${MDBOOK_BOOK__SRC}")          # [book.src]
+    set(ENV_MDBOOK_BOOK__LANGUAGE   "${MDBOOK_BOOK__LANGUAGE}")     # [book.language]
+    set(ENV_MDBOOK_OUTPUT           "${MDBOOK_OUTPUT}")             # [output]
+    set(ENV_MDBOOK_PREPROCESSOR     "${MDBOOK_PREPROCESSOR}")       # [preprocessor]
+    set(ENV_VARS_OF_COMMON          MDBOOK_BOOK__SRC=${ENV_MDBOOK_BOOK__SRC}
+                                    MDBOOK_BOOK__LANGUAGE=${ENV_MDBOOK_BOOK__LANGUAGE}
+                                    MDBOOK_OUTPUT=${ENV_MDBOOK_OUTPUT}
+                                    MDBOOK_PREPROCESSOR=${ENV_MDBOOK_PREPROCESSOR})
     remove_cmake_message_indent()
     message("")
+    message("ENV_MDBOOK_BOOK__SRC       = ${ENV_MDBOOK_BOOK__SRC}")
     message("ENV_MDBOOK_BOOK__LANGUAGE  = ${ENV_MDBOOK_BOOK__LANGUAGE}")
     message("ENV_MDBOOK_OUTPUT          = ${ENV_MDBOOK_OUTPUT}")
     message("ENV_MDBOOK_PREPROCESSOR    = ${ENV_MDBOOK_PREPROCESSOR}")
@@ -189,7 +214,7 @@ unset(_LANGUAGE)
 
 
 set(REDIRECT_LANGTAG    "en-us")
-set(REDIRECT_VERSION    "latest")
+set(REDIRECT_VERSION    "main")
 
 
 message(STATUS "Configuring 'index.html' file to the root of the renderer directory...")

@@ -14,7 +14,7 @@ set(CMAKE_PROGRAM_PATH  "${PROJ_CONDA_DIR}"
 find_package(Git        MODULE REQUIRED)
 find_package(Gettext    MODULE REQUIRED COMPONENTS Msgcat Msgmerge)
 find_package(Dasel      MODULE REQUIRED)
-find_package(mdBook     MODULE REQUIRED)
+find_package(mdBook     MODULE REQUIRED COMPONENTS mdBook)
 include(LogUtils)
 include(GitUtils)
 include(JsonUtils)
@@ -104,11 +104,26 @@ message(STATUS "Running 'mdbook build' command to generate .pot files...")
 if (CMAKE_HOST_LINUX)
     set(ENV_PATH                "${PROJ_CONDA_DIR}/bin:$ENV{PATH}")
     set(ENV_LD_LIBRARY_PATH     "${PROJ_CONDA_DIR}/lib:$ENV{LD_LIBRARY_PATH}")
+    set(ENV_CARGO_INSTALL_ROOT  "${PROJ_CONDA_DIR}")
     set(ENV_VARS_OF_SYSTEM      PATH=${ENV_PATH}
-                                LD_LIBRARY_PATH=${ENV_LD_LIBRARY_PATH})
+                                LD_LIBRARY_PATH=${ENV_LD_LIBRARY_PATH}
+                                CARGO_INSTALL_ROOT=${ENV_CARGO_INSTALL_ROOT})
+elseif (CMAKE_HOST_WIN32)
+    set(ENV_PATH                "${PROJ_CONDA_DIR}/bin"
+                                "${PROJ_CONDA_DIR}/Scripts"
+                                "${PROJ_CONDA_DIR}/Library/bin"
+                                "${PROJ_CONDA_DIR}"
+                                "$ENV{PATH}")
+    set(ENV_CARGO_INSTALL_ROOT  "${PROJ_CONDA_DIR}/Library")
+    string(REPLACE ";" "\\\\;" ENV_PATH "${ENV_PATH}")
+    set(ENV_VARS_OF_SYSTEM      PATH=${ENV_PATH}
+                                CARGO_INSTALL_ROOT=${ENV_CARGO_INSTALL_ROOT})
 else()
     message(FATAL_ERROR "Invalid OS platform. (${CMAKE_HOST_SYSTEM_NAME})")
 endif()
+block(PROPAGATE MDBOOK_BOOK__SRC)
+    set(MDBOOK_BOOK__SRC        "${SRC_TO_BOOK_DIR}")
+endblock()
 block(PROPAGATE MDBOOK_OUTPUT)
     set(MDBOOK_OUTPUT "{}")
     set(MDBOOK_OUTPUT__XGETTEXT "{}")
@@ -134,12 +149,15 @@ block(PROPAGATE MDBOOK_PREPROCESSOR)
     # Remove [preprocessor.zed_docs_preprocessor]
     string(JSON MDBOOK_PREPROCESSOR REMOVE "${MDBOOK_PREPROCESSOR}" "zed_docs_preprocessor")
 endblock()
-set(ENV_MDBOOK_OUTPUT               "${MDBOOK_OUTPUT}")
-set(ENV_MDBOOK_PREPROCESSOR         "${MDBOOK_PREPROCESSOR}")
-set(ENV_VARS_OF_COMMON              MDBOOK_OUTPUT=${ENV_MDBOOK_OUTPUT}
-                                    MDBOOK_PREPROCESSOR=${ENV_MDBOOK_PREPROCESSOR})
+set(ENV_MDBOOK_BOOK__SRC        "${MDBOOK_BOOK__SRC}")      # [book.src]
+set(ENV_MDBOOK_OUTPUT           "${MDBOOK_OUTPUT}")         # [output]
+set(ENV_MDBOOK_PREPROCESSOR     "${MDBOOK_PREPROCESSOR}")   # [preprocessor]
+set(ENV_VARS_OF_COMMON          MDBOOK_BOOK__SRC=${ENV_MDBOOK_BOOK__SRC}
+                                MDBOOK_OUTPUT=${ENV_MDBOOK_OUTPUT}
+                                MDBOOK_PREPROCESSOR=${ENV_MDBOOK_PREPROCESSOR})
 remove_cmake_message_indent()
 message("")
+message("ENV_MDBOOK_BOOK__SRC       = ${ENV_MDBOOK_BOOK__SRC}")
 message("ENV_MDBOOK_OUTPUT          = ${ENV_MDBOOK_OUTPUT}")
 message("ENV_MDBOOK_PREPROCESSOR    = ${ENV_MDBOOK_PREPROCESSOR}")
 message("")
@@ -160,7 +178,7 @@ execute_process(
     RESULT_VARIABLE RES_VAR
     OUTPUT_VARIABLE OUT_VAR OUTPUT_STRIP_TRAILING_WHITESPACE
     ERROR_VARIABLE  ERR_VAR ERROR_STRIP_TRAILING_WHITESPACE)
-if(RES_VAR EQUAL 0)
+if (RES_VAR EQUAL 0)
 else()
     string(APPEND FAILURE_REASON
     "The command failed with fatal errors.\n"
