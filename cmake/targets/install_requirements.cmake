@@ -1,5 +1,5 @@
 # Distributed under the OSI-approved BSD 3-Clause License.
-# See accompanying file LICENSE.txt for details.
+# See accompanying file LICENSE-BSD for details.
 
 cmake_minimum_required(VERSION 3.25)
 get_filename_component(SCRIPT_NAME "${CMAKE_CURRENT_LIST_FILE}" NAME_WE)
@@ -9,6 +9,8 @@ message(STATUS "-------------------- ${SCRIPT_NAME} --------------------")
 
 
 set(CMAKE_MODULE_PATH   "${PROJ_CMAKE_MODULES_DIR}")
+set(CMAKE_PROGRAM_PATH  "${PROJ_CONDA_DIR}"
+                        "${PROJ_CONDA_DIR}/Library")
 find_package(Git        MODULE REQUIRED)
 find_package(Conda      MODULE REQUIRED)
 include(LogUtils)
@@ -98,11 +100,51 @@ message("")
 restore_cmake_message_indent()
 
 
+message(STATUS "Patching the repository for the '${VERSION}' version...")
+set(SRC_PATCH_DIR   "${PROJ_CMAKE_CUSTOM_DIR}/patch/${VERSION}")
+set(DST_PATCH_DIR   "${PROJ_OUT_REPO_DIR}")
+remove_cmake_message_indent()
+message("")
+message("From:  ${SRC_PATCH_DIR}")
+message("To:    ${DST_PATCH_DIR}")
+file(GLOB_RECURSE SRC_PATCH_FILES "${SRC_PATCH_DIR}/*")
+foreach(SRC_PATCH_FILE ${SRC_PATCH_FILES})
+    string(REPLACE "${SRC_PATCH_DIR}/" "" PATCH_FILE_RELATIVE "${SRC_PATCH_FILE}")
+    set(DST_PATCH_FILE "${DST_PATCH_DIR}/${PATCH_FILE_RELATIVE}")
+    get_filename_component(DST_PATCH_FILE_DIR "${DST_PATCH_FILE}" DIRECTORY)
+    file(MAKE_DIRECTORY "${DST_PATCH_FILE_DIR}")
+    file(COPY_FILE "${SRC_PATCH_FILE}" "${DST_PATCH_FILE}")
+    message("With:  ${DST_PATCH_FILE}")
+endforeach()
+unset(SRC_PATCH_FILE)
+message("")
+restore_cmake_message_indent()
+
+
 if (NOT INSTALL_REQUIRED)
     message(STATUS "No need to install the requirements.")
     return()
 else()
     message(STATUS "Prepare to install the requirements.")
+endif()
+
+
+message(STATUS "Removing directory '${PROJ_OUT_REPO_DIR}/target/'...")
+if (EXISTS "${PROJ_OUT_REPO_DIR}/target")
+    file(REMOVE_RECURSE "${PROJ_OUT_REPO_DIR}/target")
+    remove_cmake_message_indent()
+    message("")
+    message("Directory '${PROJ_OUT_REPO_DIR}/target/' exists.")
+    message("Removed '${PROJ_OUT_REPO_DIR}/target/'.")
+    message("")
+    restore_cmake_message_indent()
+else()
+    remove_cmake_message_indent()
+    message("")
+    message("Directory '${PROJ_OUT_REPO_DIR}/target/' does NOT exist.")
+    message("No need to remove '${PROJ_OUT_REPO_DIR}/target/'.")
+    message("")
+    restore_cmake_message_indent()
 endif()
 
 
@@ -150,6 +192,16 @@ execute_process(
             # conda-forge::mold=${VERSION_OF_MOLD}
             conda-forge::rust=${VERSION_OF_RUST}
             conda-forge::dasel=${VERSION_OF_DASEL}
+            conda-forge::mold
+            # https://github.com/zed-industries/zed/blob/main/script/linux
+            conda-forge::git
+            conda-forge::gcc
+            conda-forge::gxx
+            conda-forge::binutils
+            conda-forge::clang
+            conda-forge::xorg-libx11  # /usr/bin/ld: cannot find -lX11-xcb: No such file or directory
+            conda-forge::xorg-libxcb
+            conda-forge::libxcb  # Additional XCB library support
             --channel conda-forge
             --prefix ${PROJ_CONDA_DIR}
             --yes
@@ -177,8 +229,7 @@ message("")
 restore_cmake_message_indent()
 
 
-set(Cargo_ROOT_DIR     "${PROJ_CONDA_DIR}")
-find_package(Cargo     MODULE REQUIRED)
+find_package(Rust       MODULE REQUIRED COMPONENTS Cargo)
 
 
 message(STATUS "Running 'cargo install' command to the specified packages...")
@@ -193,22 +244,24 @@ else()
     message(FATAL_ERROR "Invalid OS platform. (${CMAKE_HOST_SYSTEM_NAME})")
 endif()
 if (NOT VERSION_OF_MDBOOK STREQUAL "")
-    set(VERSION_OF_MDBOOK "@${VERSION_OF_MDBOOK}")
+    set(CRATE_OF_MDBOOK "@${VERSION_OF_MDBOOK}")
 endif()
-if (NOT VERSION_OF_MDBOOK_I18N_HELPER STREQUAL "")
-    set(VERSION_OF_MDBOOK_I18N_HELPER "@${VERSION_OF_MDBOOK_I18N_HELPER}")
+if (NOT VERSION_OF_MDBOOK_I18N_HELPERS STREQUAL "")
+    set(CRATE_OF_MDBOOK_I18N_HELPERS "@${VERSION_OF_MDBOOK_I18N_HELPERS}")
 endif()
 remove_cmake_message_indent()
 message("")
 message("VERSION_OF_MDBOOK              = ${VERSION_OF_MDBOOK}")
-message("VERSION_OF_MDBOOK_I18N_HELPER  = ${VERSION_OF_MDBOOK_I18N_HELPER}")
+message("VERSION_OF_MDBOOK_I18N_HELPERS = ${VERSION_OF_MDBOOK_I18N_HELPERS}")
+message("CRATE_OF_MDBOOK                = ${CRATE_OF_MDBOOK}")
+message("CRATE_OF_MDBOOK_I18N_HELPERS   = ${CRATE_OF_MDBOOK_I18N_HELPERS}")
 message("")
 execute_process(
     COMMAND ${CMAKE_COMMAND} -E env
             ${ENV_VARS_OF_SYSTEM}
-            ${Cargo_EXECUTABLE} install
-            mdbook${VERSION_OF_MDBOOK}
-            mdbook-i18n-helpers${VERSION_OF_MDBOOK_I18N_HELPER}
+            ${Rust_CARGO_EXECUTABLE} install
+            ${CRATE_OF_MDBOOK}
+            ${CRATE_OF_MDBOOK_I18N_HELPERS}
             --root ${PROJ_CONDA_DIR}
     ECHO_OUTPUT_VARIABLE
     ECHO_ERROR_VARIABLE
@@ -234,7 +287,115 @@ message("")
 restore_cmake_message_indent()
 
 
-message(STATUS "The followings are the installed packages in Conda Environment...")
+# message(STATUS "Running 'cargo build' command to build 'docs_preprocessor' package...")
+# if (CMAKE_HOST_LINUX)
+#     set(ENV_PATH                "${PROJ_CONDA_DIR}/bin:$ENV{PATH}")
+#     set(ENV_LIBRARY_PATH        "${PROJ_CONDA_DIR}/lib:$ENV{LIBRARY_PATH}")
+#     set(ENV_LD_LIBRARY_PATH     "${PROJ_CONDA_DIR}/lib:$ENV{LD_LIBRARY_PATH}")
+#     set(ENV_CARGO_INSTALL_ROOT  "${PROJ_CONDA_DIR}")
+#     set(ENV_VARS_OF_SYSTEM      PATH=${ENV_PATH}
+#                                 LIBRARY_PATH=${ENV_LIBRARY_PATH}
+#                                 LD_LIBRARY_PATH=${ENV_LD_LIBRARY_PATH}
+#                                 CARGO_INSTALL_ROOT=${ENV_CARGO_INSTALL_ROOT})
+# elseif (CMAKE_HOST_WIN32)
+#     set(ENV_PATH                "${PROJ_CONDA_DIR}/bin"
+#                                 "${PROJ_CONDA_DIR}/Scripts"
+#                                 "${PROJ_CONDA_DIR}/Library/bin"
+#                                 "${PROJ_CONDA_DIR}"
+#                                 "$ENV{PATH}")
+#     set(ENV_CARGO_INSTALL_ROOT  "${PROJ_CONDA_DIR}/Library")
+#     string(REPLACE ";" "\\\\;" ENV_PATH "${ENV_PATH}")
+#     set(ENV_VARS_OF_SYSTEM      PATH=${ENV_PATH}
+#                                 CARGO_INSTALL_ROOT=${ENV_CARGO_INSTALL_ROOT})
+# else()
+#     message(FATAL_ERROR "Invalid OS platform. (${CMAKE_HOST_SYSTEM_NAME})")
+# endif()
+# remove_cmake_message_indent()
+# message("")
+# execute_process(
+#     COMMAND ${CMAKE_COMMAND} -E env
+#             ${ENV_VARS_OF_SYSTEM}
+#             ${Rust_CARGO_EXECUTABLE} build
+#             --package docs_preprocessor
+#     WORKING_DIRECTORY ${PROJ_OUT_REPO_DIR}
+#     ECHO_OUTPUT_VARIABLE
+#     ECHO_ERROR_VARIABLE
+#     RESULT_VARIABLE RES_VAR
+#     OUTPUT_VARIABLE OUT_VAR OUTPUT_STRIP_TRAILING_WHITESPACE
+#     ERROR_VARIABLE  ERR_VAR ERROR_STRIP_TRAILING_WHITESPACE)
+# if (RES_VAR EQUAL 0)
+#     if (ERR_VAR)
+#         string(APPEND WARNING_REASON
+#         "The command succeeded with warnings.\n\n"
+#         "    result:\n\n${RES_VAR}\n\n"
+#         "    stderr:\n\n${ERR_VAR}")
+#         message("${WARNING_REASON}")
+#     endif()
+# else()
+#     string(APPEND FAILURE_REASON
+#     "The command failed with fatal errors.\n"
+#     "    result:\n${RES_VAR}\n"
+#     "    stderr:\n${ERR_VAR}")
+#     message(FATAL_ERROR "${FAILURE_REASON}")
+# endif()
+# message("")
+# restore_cmake_message_indent()
+message(STATUS "Running 'cargo install' command to install the 'docs_preprocessor' package...")
+if (CMAKE_HOST_LINUX)
+    set(ENV_PATH                "${PROJ_CONDA_DIR}/bin:$ENV{PATH}")
+    set(ENV_LIBRARY_PATH        "${PROJ_CONDA_DIR}/lib:$ENV{LIBRARY_PATH}")
+    set(ENV_LD_LIBRARY_PATH     "${PROJ_CONDA_DIR}/lib:$ENV{LD_LIBRARY_PATH}")
+    set(ENV_CARGO_INSTALL_ROOT  "${PROJ_CONDA_DIR}")
+    set(ENV_VARS_OF_SYSTEM      PATH=${ENV_PATH}
+                                LIBRARY_PATH=${ENV_LIBRARY_PATH}
+                                LD_LIBRARY_PATH=${ENV_LD_LIBRARY_PATH}
+                                CARGO_INSTALL_ROOT=${ENV_CARGO_INSTALL_ROOT})
+elseif (CMAKE_HOST_WIN32)
+    set(ENV_PATH                "${PROJ_CONDA_DIR}/bin"
+                                "${PROJ_CONDA_DIR}/Scripts"
+                                "${PROJ_CONDA_DIR}/Library/bin"
+                                "${PROJ_CONDA_DIR}"
+                                "$ENV{PATH}")
+    set(ENV_CARGO_INSTALL_ROOT  "${PROJ_CONDA_DIR}/Library")
+    string(REPLACE ";" "\\\\;" ENV_PATH "${ENV_PATH}")
+    set(ENV_VARS_OF_SYSTEM      PATH=${ENV_PATH}
+                                CARGO_INSTALL_ROOT=${ENV_CARGO_INSTALL_ROOT})
+else()
+    message(FATAL_ERROR "Invalid OS platform. (${CMAKE_HOST_SYSTEM_NAME})")
+endif()
+remove_cmake_message_indent()
+message("")
+execute_process(
+    COMMAND ${CMAKE_COMMAND} -E env
+            ${ENV_VARS_OF_SYSTEM}
+            ${Rust_CARGO_EXECUTABLE} install
+            --path crates/docs_preprocessor
+    WORKING_DIRECTORY ${PROJ_OUT_REPO_DIR}
+    ECHO_OUTPUT_VARIABLE
+    ECHO_ERROR_VARIABLE
+    RESULT_VARIABLE RES_VAR
+    OUTPUT_VARIABLE OUT_VAR OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_VARIABLE  ERR_VAR ERROR_STRIP_TRAILING_WHITESPACE)
+if (RES_VAR EQUAL 0)
+    if (ERR_VAR)
+        string(APPEND WARNING_REASON
+        "The command succeeded with warnings.\n\n"
+        "    result:\n\n${RES_VAR}\n\n"
+        "    stderr:\n\n${ERR_VAR}")
+        message("${WARNING_REASON}")
+    endif()
+else()
+    string(APPEND FAILURE_REASON
+    "The command failed with fatal errors.\n"
+    "    result:\n${RES_VAR}\n"
+    "    stderr:\n${ERR_VAR}")
+    message(FATAL_ERROR "${FAILURE_REASON}")
+endif()
+message("")
+restore_cmake_message_indent()
+
+
+message(STATUS "The followings are the installed packages in Conda environment...")
 execute_process(
     COMMAND ${Conda_EXECUTABLE} list --export --prefix ${PROJ_CONDA_DIR}
     RESULT_VARIABLE RES_VAR

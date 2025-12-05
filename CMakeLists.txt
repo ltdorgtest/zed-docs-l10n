@@ -80,8 +80,8 @@ set(VERSION_OF_DASEL "[default]"
 set(VERSION_OF_MDBOOK "[default]"
     CACHE STRING "The version of mdBook to install.")
 
-set(VERSION_OF_MDBOOK_I18N_HELPER "[default]"
-    CACHE STRING "The version of mdbook-i18n-helper to install.")
+set(VERSION_OF_MDBOOK_I18N_HELPERS "[default]"
+    CACHE STRING "The version of mdbook-i18n-helpers to install.")
 
 #[============================================================[
 # Directory-Related Variables.
@@ -90,8 +90,8 @@ set(VERSION_OF_MDBOOK_I18N_HELPER "[default]"
 set(PROJ_SOURCE_DIR                 "${PROJECT_SOURCE_DIR}")
 set(PROJ_BINARY_DIR                 "${PROJECT_BINARY_DIR}")
 set(PROJ_CMAKE_CUSTOM_DIR           "${PROJ_SOURCE_DIR}/cmake/custom")
-set(PROJ_CMAKE_FLYOUT_DIR           "${PROJ_SOURCE_DIR}/cmake/flyout")
 set(PROJ_CMAKE_MODULES_DIR          "${PROJ_SOURCE_DIR}/cmake/modules")
+set(PROJ_CMAKE_PLUGINS_DIR          "${PROJ_SOURCE_DIR}/cmake/plugins")
 set(PROJ_CMAKE_TARGETS_DIR          "${PROJ_SOURCE_DIR}/cmake/targets")
 set(PROJ_CONDA_DIR                  "${PROJ_SOURCE_DIR}/.conda")
 set(PROJ_OUT_DIR                    "${PROJ_SOURCE_DIR}/out")
@@ -202,11 +202,11 @@ endif()
 # Set VERSION_OF_XXX to $CACHE{VERSION_OF_XX} if it's not "[default]".
 #]============================================================]
 
-if     (VERSION MATCHES "^latest$")
-    set(VERSION_OF_RUST               "")
-    set(VERSION_OF_DASEL              "")
-    set(VERSION_OF_MDBOOK             "0.4.40")
-    set(VERSION_OF_MDBOOK_I18N_HELPER "")
+if     (VERSION MATCHES "^(latest)$")
+    set(VERSION_OF_RUST                 "1.91")
+    set(VERSION_OF_DASEL                "2")
+    set(VERSION_OF_MDBOOK               "0.4.40")
+    set(VERSION_OF_MDBOOK_I18N_HELPERS   "0.3.6")
 else()
     message(FATAL_ERROR "Invalid VERSION value. (${VERSION})")
 endif()
@@ -219,8 +219,8 @@ endif()
 if (NOT "$CACHE{VERSION_OF_MDBOOK}" STREQUAL "[default]")
     set(VERSION_OF_MDBOOK "$CACHE{VERSION_OF_MDBOOK}")
 endif()
-if (NOT "$CACHE{VERSION_OF_MDBOOK_I18N_HELPER}" STREQUAL "[default]")
-    set(VERSION_OF_MDBOOK_I18N_HELPER "$CACHE{VERSION_OF_MDBOOK_I18N_HELPER}")
+if (NOT "$CACHE{VERSION_OF_MDBOOK_I18N_HELPERS}" STREQUAL "[default]")
+    set(VERSION_OF_MDBOOK_I18N_HELPERS "$CACHE{VERSION_OF_MDBOOK_I18N_HELPERS}")
 endif()
 
 #[============================================================[
@@ -293,13 +293,13 @@ message(STATUS "GETTEXT_WRAP_WIDTH              = ${GETTEXT_WRAP_WIDTH}")
 message(STATUS "VERSION_OF_RUST                 = ${VERSION_OF_RUST}")
 message(STATUS "VERSION_OF_DASEL                = ${VERSION_OF_DASEL}")
 message(STATUS "VERSION_OF_MDBOOK               = ${VERSION_OF_MDBOOK}")
-message(STATUS "VERSION_OF_MDBOOK_I18N_HELPER   = ${VERSION_OF_MDBOOK_I18N_HELPER}")
+message(STATUS "VERSION_OF_MDBOOK_I18N_HELPERS   = ${VERSION_OF_MDBOOK_I18N_HELPERS}")
 message(STATUS "---------- Directory-Related Variables ----------")
 message(STATUS "PROJ_SOURCE_DIR                 = ${PROJ_SOURCE_DIR}")
 message(STATUS "PROJ_BINARY_DIR                 = ${PROJ_BINARY_DIR}")
 message(STATUS "PROJ_CMAKE_CUSTOM_DIR           = ${PROJ_CMAKE_CUSTOM_DIR}")
-message(STATUS "PROJ_CMAKE_FLYOUT_DIR           = ${PROJ_CMAKE_FLYOUT_DIR}")
 message(STATUS "PROJ_CMAKE_MODULES_DIR          = ${PROJ_CMAKE_MODULES_DIR}")
+message(STATUS "PROJ_CMAKE_PLUGINS_DIR          = ${PROJ_CMAKE_PLUGINS_DIR}")
 message(STATUS "PROJ_CMAKE_TARGETS_DIR          = ${PROJ_CMAKE_TARGETS_DIR}")
 message(STATUS "PROJ_CONDA_DIR                  = ${PROJ_CONDA_DIR}")
 message(STATUS "PROJ_OUT_DIR                    = ${PROJ_OUT_DIR}")
@@ -383,13 +383,13 @@ set(SCRIPT_MODE_CACHE
     -D VERSION_OF_RUST=${VERSION_OF_RUST}
     -D VERSION_OF_DASEL=${VERSION_OF_DASEL}
     -D VERSION_OF_MDBOOK=${VERSION_OF_MDBOOK}
-    -D VERSION_OF_MDBOOK_I18N_HELPER=${VERSION_OF_MDBOOK_I18N_HELPER}
+    -D VERSION_OF_MDBOOK_I18N_HELPERS=${VERSION_OF_MDBOOK_I18N_HELPERS}
     # [Directory-Related Variables]
     -D PROJ_SOURCE_DIR=${PROJ_SOURCE_DIR}
     -D PROJ_BINARY_DIR=${PROJ_BINARY_DIR}
     -D PROJ_CMAKE_CUSTOM_DIR=${PROJ_CMAKE_CUSTOM_DIR}
-    -D PROJ_CMAKE_FLYOUT_DIR=${PROJ_CMAKE_FLYOUT_DIR}
     -D PROJ_CMAKE_MODULES_DIR=${PROJ_CMAKE_MODULES_DIR}
+    -D PROJ_CMAKE_PLUGINS_DIR=${PROJ_CMAKE_PLUGINS_DIR}
     -D PROJ_CMAKE_TARGETS_DIR=${PROJ_CMAKE_TARGETS_DIR}
     -D PROJ_CONDA_DIR=${PROJ_CONDA_DIR}
     -D PROJ_OUT_DIR=${PROJ_OUT_DIR}
@@ -497,3 +497,60 @@ if (AUTO_DEPEND)
     add_dependencies(gettext_update_po      mdbook_update_pot)
     add_dependencies(mdbook_build_docs      gettext_update_po)
 endif()
+
+
+# set(Rust_ROOT_DIR       "${PROJ_CONDA_DIR}")
+# find_package(Rust       MODULE REQUIRED COMPONENTS Cargo)
+# message(STATUS "Running 'cargo build' command to build 'docs_preprocessor' package...")
+# if (CMAKE_HOST_LINUX)
+#     set(ENV_PATH                "${PROJ_CONDA_DIR}/bin:$ENV{PATH}")
+#     set(ENV_LIBRARY_PATH        "${PROJ_CONDA_DIR}/lib:$ENV{LIBRARY_PATH}")
+#     set(ENV_LD_LIBRARY_PATH     "${PROJ_CONDA_DIR}/lib:$ENV{LD_LIBRARY_PATH}")
+#     set(ENV_CARGO_INSTALL_ROOT  "${PROJ_CONDA_DIR}")
+#     set(ENV_VARS_OF_SYSTEM      PATH=${ENV_PATH}
+#                                 LIBRARY_PATH=${ENV_LIBRARY_PATH}
+#                                 LD_LIBRARY_PATH=${ENV_LD_LIBRARY_PATH}
+#                                 CARGO_INSTALL_ROOT=${ENV_CARGO_INSTALL_ROOT})
+# elseif (CMAKE_HOST_WIN32)
+#     set(ENV_PATH                "${PROJ_CONDA_DIR}/bin"
+#                                 "${PROJ_CONDA_DIR}/Scripts"
+#                                 "${PROJ_CONDA_DIR}/Library/bin"
+#                                 "${PROJ_CONDA_DIR}"
+#                                 "$ENV{PATH}")
+#     set(ENV_CARGO_INSTALL_ROOT  "${PROJ_CONDA_DIR}/Library")
+#     string(REPLACE ";" "\\\\;" ENV_PATH "${ENV_PATH}")
+#     set(ENV_VARS_OF_SYSTEM      PATH=${ENV_PATH}
+#                                 CARGO_INSTALL_ROOT=${ENV_CARGO_INSTALL_ROOT})
+# else()
+#     message(FATAL_ERROR "Invalid OS platform. (${CMAKE_HOST_SYSTEM_NAME})")
+# endif()
+# remove_cmake_message_indent()
+# message("")
+# execute_process(
+#     COMMAND ${CMAKE_COMMAND} -E env
+#             ${ENV_VARS_OF_SYSTEM}
+#             ${Rust_CARGO_EXECUTABLE} build
+#             --package docs_preprocessor
+#     WORKING_DIRECTORY ${PROJ_OUT_REPO_DIR}
+#     ECHO_OUTPUT_VARIABLE
+#     ECHO_ERROR_VARIABLE
+#     RESULT_VARIABLE RES_VAR
+#     OUTPUT_VARIABLE OUT_VAR OUTPUT_STRIP_TRAILING_WHITESPACE
+#     ERROR_VARIABLE  ERR_VAR ERROR_STRIP_TRAILING_WHITESPACE)
+# if (RES_VAR EQUAL 0)
+#     if (ERR_VAR)
+#         string(APPEND WARNING_REASON
+#         "The command succeeded with warnings.\n\n"
+#         "    result:\n\n${RES_VAR}\n\n"
+#         "    stderr:\n\n${ERR_VAR}")
+#         message("${WARNING_REASON}")
+#     endif()
+# else()
+#     string(APPEND FAILURE_REASON
+#     "The command failed with fatal errors.\n"
+#     "    result:\n${RES_VAR}\n"
+#     "    stderr:\n${ERR_VAR}")
+#     message(FATAL_ERROR "${FAILURE_REASON}")
+# endif()
+# message("")
+# restore_cmake_message_indent()

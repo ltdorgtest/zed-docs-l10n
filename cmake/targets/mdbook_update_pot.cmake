@@ -1,5 +1,5 @@
 # Distributed under the OSI-approved BSD 3-Clause License.
-# See accompanying file LICENSE.txt for details.
+# See accompanying file LICENSE-BSD for details.
 
 cmake_minimum_required(VERSION 3.25)
 get_filename_component(SCRIPT_NAME "${CMAKE_CURRENT_LIST_FILE}" NAME_WE)
@@ -9,8 +9,8 @@ message(STATUS "-------------------- ${SCRIPT_NAME} --------------------")
 
 
 set(CMAKE_MODULE_PATH   "${PROJ_CMAKE_MODULES_DIR}")
-set(Dasel_ROOT_DIR      "${PROJ_CONDA_DIR}")
-set(mdBook_ROOT_DIR     "${PROJ_CONDA_DIR}")
+set(CMAKE_PROGRAM_PATH  "${PROJ_CONDA_DIR}"
+                        "${PROJ_CONDA_DIR}/Library")
 find_package(Git        MODULE REQUIRED)
 find_package(Gettext    MODULE REQUIRED COMPONENTS Msgcat Msgmerge)
 find_package(Dasel      MODULE REQUIRED)
@@ -64,6 +64,21 @@ message("")
 restore_cmake_message_indent()
 
 
+# # https://github.com/zed-industries/zed/blob/908ae95cf86930893140bee37cf37c8918ac90e8/.cargo/ci-config.toml
+# # https://github.com/zed-industries/zed/blob/908ae95cf86930893140bee37cf37c8918ac90e8/.github/workflows/ci.yml#L232-L235
+# message(STATUS "Copying '.cargo/ci-config.toml' file to '.cargo/config.toml' file...")
+# file(MAKE_DIRECTORY "${PROJ_OUT_REPO_BOOK_THEME_DIR}")
+# file(COPY_FILE
+#     "${PROJ_OUT_REPO_DIR}/.cargo/ci-config.toml"
+#     "${PROJ_OUT_REPO_DIR}/.cargo/config.toml")
+# remove_cmake_message_indent()
+# message("")
+# message("From: ${PROJ_OUT_REPO_DIR}/.cargo/ci-config.toml")
+# message("To:   ${PROJ_OUT_REPO_DIR}/.cargo/config.toml")
+# message("")
+# restore_cmake_message_indent()
+
+
 message(STATUS "Copying 'head.hbs' file to the mdbook theme directory...")
 file(MAKE_DIRECTORY "${PROJ_OUT_REPO_BOOK_THEME_DIR}")
 file(COPY_FILE
@@ -96,9 +111,9 @@ else()
 endif()
 block(PROPAGATE MDBOOK_OUTPUT)
     set(MDBOOK_OUTPUT "{}")
-    set(MDBOOK_XGETTEXT "{}")
-    string(JSON MDBOOK_XGETTEXT SET "${MDBOOK_XGETTEXT}" "depth" "${MDBOOK_XGETTEXT_DEPTH}")
-    string(JSON MDBOOK_OUTPUT SET "${MDBOOK_OUTPUT}" "xgettext" "${MDBOOK_XGETTEXT}")
+    set(MDBOOK_OUTPUT__XGETTEXT "{}")
+    string(JSON MDBOOK_OUTPUT__XGETTEXT SET "${MDBOOK_OUTPUT__XGETTEXT}" "depth" "${MDBOOK_XGETTEXT_DEPTH}")
+    string(JSON MDBOOK_OUTPUT           SET "${MDBOOK_OUTPUT}" "xgettext" "${MDBOOK_OUTPUT__XGETTEXT}")
 endblock()
 block(PROPAGATE MDBOOK_PREPROCESSOR)
     execute_process(
@@ -116,8 +131,8 @@ block(PROPAGATE MDBOOK_PREPROCESSOR)
     else()
         set(MDBOOK_PREPROCESSOR "{}")
     endif()
-    # Remove [preprocessor.zed_docs_preprocessor]
-    string(JSON MDBOOK_PREPROCESSOR REMOVE "${MDBOOK_PREPROCESSOR}" "zed_docs_preprocessor")
+    # # Remove [preprocessor.zed_docs_preprocessor]
+    # string(JSON MDBOOK_PREPROCESSOR REMOVE "${MDBOOK_PREPROCESSOR}" "zed_docs_preprocessor")
 endblock()
 set(ENV_MDBOOK_OUTPUT               "${MDBOOK_OUTPUT}")
 set(ENV_MDBOOK_PREPROCESSOR         "${MDBOOK_PREPROCESSOR}")

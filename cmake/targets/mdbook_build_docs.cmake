@@ -1,5 +1,5 @@
 # Distributed under the OSI-approved BSD 3-Clause License.
-# See accompanying file LICENSE.txt for details.
+# See accompanying file LICENSE-BSD for details.
 
 cmake_minimum_required(VERSION 3.25)
 get_filename_component(SCRIPT_NAME "${CMAKE_CURRENT_LIST_FILE}" NAME_WE)
@@ -9,8 +9,8 @@ message(STATUS "-------------------- ${SCRIPT_NAME} --------------------")
 
 
 set(CMAKE_MODULE_PATH   "${PROJ_CMAKE_MODULES_DIR}")
-set(mdBook_ROOT_DIR     "${PROJ_CONDA_DIR}")
-set(Dasel_ROOT_DIR      "${PROJ_CONDA_DIR}")
+set(CMAKE_PROGRAM_PATH  "${PROJ_CONDA_DIR}"
+                        "${PROJ_CONDA_DIR}/Library")
 find_package(Git        MODULE REQUIRED)
 find_package(Gettext    MODULE REQUIRED COMPONENTS Msgcat Msgmerge)
 find_package(Dasel      MODULE REQUIRED)
@@ -132,13 +132,13 @@ foreach(_LANGUAGE ${LANGUAGE_LIST})
         else()
             set(MDBOOK_PREPROCESSOR "{}")
         endif()
-        # Remove [preprocessor.zed_docs_preprocessor]
-        string(JSON MDBOOK_PREPROCESSOR REMOVE "${MDBOOK_PREPROCESSOR}" "zed_docs_preprocessor")
+        # # Remove [preprocessor.zed_docs_preprocessor]
+        # string(JSON MDBOOK_PREPROCESSOR REMOVE "${MDBOOK_PREPROCESSOR}" "zed_docs_preprocessor")
         # Assign [preprocessor.gettext]
         set(MDBOOK_PREPROCESSOR__GETTEXT "{}")
         string(JSON MDBOOK_PREPROCESSOR__GETTEXT SET "${MDBOOK_PREPROCESSOR__GETTEXT}" "after" "[\"links\"]")
         string(JSON MDBOOK_PREPROCESSOR__GETTEXT SET "${MDBOOK_PREPROCESSOR__GETTEXT}" "po-dir" "\"${LOCALE_TO_BOOK_DIR}\"")
-        string(JSON MDBOOK_PREPROCESSOR SET "${MDBOOK_PREPROCESSOR}" "gettext" "${MDBOOK_PREPROCESSOR__GETTEXT}")
+        string(JSON MDBOOK_PREPROCESSOR          SET "${MDBOOK_PREPROCESSOR}" "gettext" "${MDBOOK_PREPROCESSOR__GETTEXT}")
     endblock()
     set(ENV_MDBOOK_BOOK__LANGUAGE       "${_LANGUAGE}")             # [book.language]
     set(ENV_MDBOOK_OUTPUT               "${MDBOOK_OUTPUT}")         # [output]
@@ -188,13 +188,13 @@ unset(_LANGUAGE)
 #]============================================================]
 
 
-set(REDIRECT_LANGTAG  "en-us")
-set(REDIRECT_VERSION  "latest")
+set(REDIRECT_LANGTAG    "en-us")
+set(REDIRECT_VERSION    "latest")
 
 
 message(STATUS "Configuring 'index.html' file to the root of the renderer directory...")
-set(REDIRECT_URL    "${REDIRECT_LANGTAG}/${REDIRECT_VERSION}/index.html")
-file(MAKE_DIRECTORY "${PROJ_OUT_RENDERER_DIR}")
+set(REDIRECT_URL        "${REDIRECT_LANGTAG}/${REDIRECT_VERSION}/index.html")
+file(MAKE_DIRECTORY     "${PROJ_OUT_RENDERER_DIR}")
 configure_file(
     "${PROJ_CMAKE_CUSTOM_DIR}/index.html.in"
     "${PROJ_OUT_RENDERER_DIR}/index.html"
@@ -230,7 +230,39 @@ restore_cmake_message_indent()
 
 
 #[============================================================[
-# Configure the flyout menu for switching languages and versions.
+# Configure the provenance dropdown.
+#]============================================================]
+
+
+set(UPSTREAM_DOCS   "https://zed.dev/docs")
+set(UPSTREAM_REPO   "https://github.com/zed-industries/zed")
+set(INSERT_POINT    "main")
+
+
+message(STATUS "Configuring 'ltd-provenance.js' file to the version subdir of the renderer directory...")
+remove_cmake_message_indent()
+message("")
+message("From: ${PROJ_CMAKE_PLUGINS_DIR}/provenance/ltd-sphinx.js.in")
+foreach(_LANGUAGE ${LANGUAGE_LIST})
+    get_json_value_by_dot_notation(
+        IN_JSON_OBJECT      "${LANGUAGES_JSON_CNT}"
+        IN_DOT_NOTATION     ".${_LANGUAGE}.langtag"
+        OUT_JSON_VALUE      _LANGTAG)
+    set(CURRENT_VERSION     "${VERSION}")
+    set(CURRENT_LANGUAGE    "${_LANGTAG}")
+    file(MAKE_DIRECTORY "${PROJ_OUT_RENDERER_DIR}/${_LANGTAG}/${VERSION}")
+    configure_file(
+        "${PROJ_CMAKE_PLUGINS_DIR}/provenance/ltd-sphinx.js.in"
+        "${PROJ_OUT_RENDERER_DIR}/${_LANGTAG}/${VERSION}/ltd-provenance.js"
+        @ONLY)
+    message("To:   ${PROJ_OUT_RENDERER_DIR}/${_LANGTAG}/${VERSION}/ltd-provenance.js")
+endforeach()
+message("")
+restore_cmake_message_indent()
+
+
+#[============================================================[
+# Configure the flyout navigation menu.
 #]============================================================]
 
 
@@ -251,12 +283,12 @@ restore_cmake_message_indent()
 message(STATUS "Configuring 'ltd-flyout.js' file to the root of the renderer directory...")
 file(MAKE_DIRECTORY "${PROJ_OUT_RENDERER_DIR}")
 configure_file(
-    "${PROJ_CMAKE_FLYOUT_DIR}/ltd-flyout.js"
+    "${PROJ_CMAKE_PLUGINS_DIR}/flyout/ltd-flyout.js"
     "${PROJ_OUT_RENDERER_DIR}/ltd-flyout.js"
     @ONLY)
 remove_cmake_message_indent()
 message("")
-message("From: ${PROJ_CMAKE_FLYOUT_DIR}/ltd-flyout.js")
+message("From: ${PROJ_CMAKE_PLUGINS_DIR}/flyout/ltd-flyout.js")
 message("To:   ${PROJ_OUT_RENDERER_DIR}/ltd-flyout.js")
 message("")
 restore_cmake_message_indent()
@@ -265,12 +297,12 @@ restore_cmake_message_indent()
 message(STATUS "Configuring 'ltd-icon.svg' file to the root of the renderer directory...")
 file(MAKE_DIRECTORY "${PROJ_OUT_RENDERER_DIR}")
 configure_file(
-    "${PROJ_CMAKE_FLYOUT_DIR}/ltd-icon.svg"
+    "${PROJ_CMAKE_PLUGINS_DIR}/flyout/ltd-icon.svg"
     "${PROJ_OUT_RENDERER_DIR}/ltd-icon.svg"
     @ONLY)
 remove_cmake_message_indent()
 message("")
-message("From: ${PROJ_CMAKE_FLYOUT_DIR}/ltd-icon.svg")
+message("From: ${PROJ_CMAKE_PLUGINS_DIR}/flyout/ltd-icon.svg")
 message("To:   ${PROJ_OUT_RENDERER_DIR}/ltd-icon.svg")
 message("")
 restore_cmake_message_indent()
@@ -279,7 +311,7 @@ restore_cmake_message_indent()
 message(STATUS "Configuring 'ltd-current.js' file to the version subdir of the renderer directory...")
 remove_cmake_message_indent()
 message("")
-message("From: ${PROJ_CMAKE_FLYOUT_DIR}/ltd-current.js.in")
+message("From: ${PROJ_CMAKE_PLUGINS_DIR}/flyout/ltd-current.js.in")
 foreach(_LANGUAGE ${LANGUAGE_LIST})
     get_json_value_by_dot_notation(
         IN_JSON_OBJECT      "${LANGUAGES_JSON_CNT}"
@@ -289,7 +321,7 @@ foreach(_LANGUAGE ${LANGUAGE_LIST})
     set(CURRENT_LANGUAGE    "${_LANGTAG}")
     file(MAKE_DIRECTORY "${PROJ_OUT_RENDERER_DIR}/${_LANGTAG}/${VERSION}")
     configure_file(
-        "${PROJ_CMAKE_FLYOUT_DIR}/ltd-current.js.in"
+        "${PROJ_CMAKE_PLUGINS_DIR}/flyout/ltd-current.js.in"
         "${PROJ_OUT_RENDERER_DIR}/${_LANGTAG}/${VERSION}/ltd-current.js"
         @ONLY)
     message("To:   ${PROJ_OUT_RENDERER_DIR}/${_LANGTAG}/${VERSION}/ltd-current.js")

@@ -9,6 +9,8 @@ message(STATUS "-------------------- ${SCRIPT_NAME} --------------------")
 
 
 set(CMAKE_MODULE_PATH   "${PROJ_CMAKE_MODULES_DIR}")
+set(CMAKE_PROGRAM_PATH  "${PROJ_CONDA_DIR}"
+                        "${PROJ_CONDA_DIR}/Library")
 find_package(Git        MODULE REQUIRED)
 include(LogUtils)
 include(GitUtils)
@@ -56,7 +58,7 @@ message(STATUS "Removing untracked files/directories of the repository...")
 remove_cmake_message_indent()
 message("")
 execute_process(
-    COMMAND ${Git_EXECUTABLE} clean -xfdf
+    COMMAND ${Git_EXECUTABLE} clean -xfdf --exclude target
     WORKING_DIRECTORY ${PROJ_OUT_REPO_DIR}
     ECHO_OUTPUT_VARIABLE
     ECHO_ERROR_VARIABLE
