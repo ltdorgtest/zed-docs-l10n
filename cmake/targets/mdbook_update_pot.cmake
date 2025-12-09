@@ -85,6 +85,25 @@ else()
 endif()
 
 
+message(STATUS "Removing directory '${PROJ_OUT_REPO_BOOK_LOCALE_DIR}/'...")
+if (EXISTS "${PROJ_OUT_REPO_BOOK_LOCALE_DIR}")
+    file(REMOVE_RECURSE "${PROJ_OUT_REPO_BOOK_LOCALE_DIR}")
+    remove_cmake_message_indent()
+    message("")
+    message("Directory '${PROJ_OUT_REPO_BOOK_LOCALE_DIR}/' exists.")
+    message("Removed '${PROJ_OUT_REPO_BOOK_LOCALE_DIR}/'.")
+    message("")
+    restore_cmake_message_indent()
+else()
+    remove_cmake_message_indent()
+    message("")
+    message("Directory '${PROJ_OUT_REPO_BOOK_LOCALE_DIR}/' does NOT exist.")
+    message("No need to remove '${PROJ_OUT_REPO_BOOK_LOCALE_DIR}/'.")
+    message("")
+    restore_cmake_message_indent()
+endif()
+
+
 message(STATUS "Running 'mdbook build' command to generate .pot files...")
 if (CMAKE_HOST_LINUX)
     set(ENV_PATH                "${PROJ_CONDA_DIR}/bin:$ENV{PATH}")
@@ -133,8 +152,6 @@ block(PROPAGATE MDBOOK_PREPROCESSOR)
     else()
         set(MDBOOK_PREPROCESSOR "{}")
     endif()
-    # # Remove [preprocessor.zed_docs_preprocessor]
-    # string(JSON MDBOOK_PREPROCESSOR REMOVE "${MDBOOK_PREPROCESSOR}" "zed_docs_preprocessor")
 endblock()
 set(ENV_MDBOOK_BOOK__SRC        "${MDBOOK_BOOK__SRC}")      # [book.src]
 set(ENV_MDBOOK_OUTPUT           "${MDBOOK_OUTPUT}")         # [output]

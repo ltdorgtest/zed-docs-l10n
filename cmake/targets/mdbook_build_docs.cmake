@@ -156,9 +156,6 @@ foreach(_LANGUAGE ${LANGUAGE_LIST})
         else()
             set(MDBOOK_PREPROCESSOR "{}")
         endif()
-        # # Remove [preprocessor.zed_docs_preprocessor]
-        # string(JSON MDBOOK_PREPROCESSOR REMOVE "${MDBOOK_PREPROCESSOR}" "zed_docs_preprocessor")
-        # Assign [preprocessor.gettext]
         set(MDBOOK_PREPROCESSOR__GETTEXT "{}")
         string(JSON MDBOOK_PREPROCESSOR__GETTEXT SET "${MDBOOK_PREPROCESSOR__GETTEXT}" "after"  "[\"links\"]")
         string(JSON MDBOOK_PREPROCESSOR__GETTEXT SET "${MDBOOK_PREPROCESSOR__GETTEXT}" "po-dir" "\"${LOCALE_TO_BOOK_DIR}\"")
