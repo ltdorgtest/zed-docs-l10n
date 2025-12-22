@@ -219,28 +219,20 @@ restore_cmake_message_indent()
 
 
 message(STATUS "Running 'conda install' command to install dependencies...")
-# set(ENABLE_DOCS_PREPROCESSOR TRUE)
-# if (ENABLE_DOCS_PREPROCESSOR)
-    set(DOCS_PREPROCESSOR_DEPS
-        # https://github.com/zed-industries/zed/blob/main/script/linux
-        conda-forge::git
-        conda-forge::gcc
-        conda-forge::gxx
-        conda-forge::binutils
-        conda-forge::clang
-        conda-forge::mold
-        conda-forge::xorg-libx11  # /usr/bin/ld: cannot find -lX11-xcb: No such file or directory
-        conda-forge::xorg-libxcb
-        conda-forge::libxcb       # Additional XCB library support
-    )
-# endif()
 remove_cmake_message_indent()
 message("")
 execute_process(
     COMMAND ${Conda_EXECUTABLE} install
             conda-forge::rust=${VERSION_OF_RUST}
             conda-forge::dasel=${VERSION_OF_DASEL}
-            ${DOCS_PREPROCESSOR_DEPS}
+            conda-forge::git
+            conda-forge::gcc
+            conda-forge::gxx
+            conda-forge::binutils
+            conda-forge::clang
+            conda-forge::mold
+            conda-forge::xorg-libx11
+            conda-forge::xorg-libxcb
             --channel conda-forge
             --prefix ${PROJ_CONDA_DIR}
             --yes
