@@ -219,24 +219,28 @@ restore_cmake_message_indent()
 
 
 message(STATUS "Running 'conda install' command to install dependencies...")
-set(DOCS_PREPROCESSOR_PACKAGES
-    # https://github.com/zed-industries/zed/blob/main/script/linux
-    conda-forge::git
-    conda-forge::gcc
-    conda-forge::gxx
-    conda-forge::binutils
-    conda-forge::clang
-    conda-forge::mold
-    conda-forge::xorg-libx11
-    conda-forge::xorg-libxcb
+# set(ENABLE_DOCS_PREPROCESSOR TRUE)
+# if (ENABLE_DOCS_PREPROCESSOR)
+    set(DOCS_PREPROCESSOR_DEPS
+        # https://github.com/zed-industries/zed/blob/main/script/linux
+        conda-forge::git
+        conda-forge::gcc
+        conda-forge::gxx
+        conda-forge::binutils
+        conda-forge::clang
+        conda-forge::mold
+        conda-forge::xorg-libx11  # /usr/bin/ld: cannot find -lX11-xcb: No such file or directory
+        conda-forge::xorg-libxcb
+        conda-forge::libxcb       # Additional XCB library support
     )
+# endif()
 remove_cmake_message_indent()
 message("")
 execute_process(
     COMMAND ${Conda_EXECUTABLE} install
             conda-forge::rust=${VERSION_OF_RUST}
             conda-forge::dasel=${VERSION_OF_DASEL}
-            ${DOCS_PREPROCESSOR_PACKAGES}
+            ${DOCS_PREPROCESSOR_DEPS}
             --channel conda-forge
             --prefix ${PROJ_CONDA_DIR}
             --yes
@@ -265,6 +269,63 @@ restore_cmake_message_indent()
 
 
 find_package(Rust       MODULE REQUIRED COMPONENTS Cargo)
+
+
+message(STATUS "Running 'cargo install' command to install the 'docs_preprocessor' crate...")
+if (CMAKE_HOST_LINUX)
+    set(ENV_PATH                "${PROJ_CONDA_DIR}/bin:$ENV{PATH}")
+    # set(ENV_LIBRARY_PATH        "${PROJ_CONDA_DIR}/lib:$ENV{LIBRARY_PATH}")
+    set(ENV_LD_LIBRARY_PATH     "${PROJ_CONDA_DIR}/lib:$ENV{LD_LIBRARY_PATH}")
+    set(ENV_CARGO_INSTALL_ROOT  "${PROJ_CONDA_DIR}")
+    set(ENV_VARS_OF_SYSTEM      PATH=${ENV_PATH}
+                                # LIBRARY_PATH=${ENV_LIBRARY_PATH}
+                                LD_LIBRARY_PATH=${ENV_LD_LIBRARY_PATH}
+                                CARGO_INSTALL_ROOT=${ENV_CARGO_INSTALL_ROOT})
+elseif (CMAKE_HOST_WIN32)
+    set(ENV_PATH                "${PROJ_CONDA_DIR}/bin"
+                                "${PROJ_CONDA_DIR}/Scripts"
+                                "${PROJ_CONDA_DIR}/Library/bin"
+                                "${PROJ_CONDA_DIR}"
+                                "$ENV{PATH}")
+    set(ENV_CARGO_INSTALL_ROOT  "${PROJ_CONDA_DIR}/Library")
+    string(REPLACE ";" "\\\\;" ENV_PATH "${ENV_PATH}")
+    set(ENV_VARS_OF_SYSTEM      PATH=${ENV_PATH}
+                                CARGO_INSTALL_ROOT=${ENV_CARGO_INSTALL_ROOT})
+else()
+    message(FATAL_ERROR "Invalid OS platform. (${CMAKE_HOST_SYSTEM_NAME})")
+endif()
+remove_cmake_message_indent()
+message("")
+execute_process(
+    COMMAND ${CMAKE_COMMAND} -E env
+            ${ENV_VARS_OF_SYSTEM}
+            ${Rust_CARGO_EXECUTABLE} install
+            --path crates/docs_preprocessor
+            --debug
+            --locked
+    WORKING_DIRECTORY ${PROJ_OUT_REPO_DIR}
+    ECHO_OUTPUT_VARIABLE
+    ECHO_ERROR_VARIABLE
+    RESULT_VARIABLE RES_VAR
+    OUTPUT_VARIABLE OUT_VAR OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_VARIABLE  ERR_VAR ERROR_STRIP_TRAILING_WHITESPACE)
+if (RES_VAR EQUAL 0)
+    if (ERR_VAR)
+        string(APPEND WARNING_REASON
+        "The command succeeded with warnings.\n\n"
+        "    result:\n\n${RES_VAR}\n\n"
+        "    stderr:\n\n${ERR_VAR}")
+        message("${WARNING_REASON}")
+    endif()
+else()
+    string(APPEND FAILURE_REASON
+    "The command failed with fatal errors.\n"
+    "    result:\n${RES_VAR}\n"
+    "    stderr:\n${ERR_VAR}")
+    message(FATAL_ERROR "${FAILURE_REASON}")
+endif()
+message("")
+restore_cmake_message_indent()
 
 
 message(STATUS "Running 'cargo install' command to the requirements...")
@@ -311,67 +372,6 @@ execute_process(
             ${Rust_CARGO_EXECUTABLE} install
             ${CRATE_OF_MDBOOK}
             ${CRATE_OF_MDBOOK_I18N_HELPERS}
-    ECHO_OUTPUT_VARIABLE
-    ECHO_ERROR_VARIABLE
-    RESULT_VARIABLE RES_VAR
-    OUTPUT_VARIABLE OUT_VAR OUTPUT_STRIP_TRAILING_WHITESPACE
-    ERROR_VARIABLE  ERR_VAR ERROR_STRIP_TRAILING_WHITESPACE)
-if (RES_VAR EQUAL 0)
-    if (ERR_VAR)
-        string(APPEND WARNING_REASON
-        "The command succeeded with warnings.\n\n"
-        "    result:\n\n${RES_VAR}\n\n"
-        "    stderr:\n\n${ERR_VAR}")
-        message("${WARNING_REASON}")
-    endif()
-else()
-    string(APPEND FAILURE_REASON
-    "The command failed with fatal errors.\n"
-    "    result:\n${RES_VAR}\n"
-    "    stderr:\n${ERR_VAR}")
-    message(FATAL_ERROR "${FAILURE_REASON}")
-endif()
-message("")
-restore_cmake_message_indent()
-
-
-message(STATUS "Running 'cargo install' command to install the 'docs_preprocessor' crate...")
-if (CMAKE_HOST_LINUX)
-    set(ENV_PATH                "${PROJ_CONDA_DIR}/bin:$ENV{PATH}")
-    set(ENV_LIBRARY_PATH        "${PROJ_CONDA_DIR}/lib:$ENV{LIBRARY_PATH}")
-    set(ENV_LD_LIBRARY_PATH     "${PROJ_CONDA_DIR}/lib:$ENV{LD_LIBRARY_PATH}")
-    set(ENV_CARGO_TARGET_DIR    "${PROJ_OUT_REPO_DIR}/target")
-    set(ENV_CARGO_INSTALL_ROOT  "${PROJ_CONDA_DIR}")
-    set(ENV_VARS_OF_SYSTEM      PATH=${ENV_PATH}
-                                LIBRARY_PATH=${ENV_LIBRARY_PATH}
-                                LD_LIBRARY_PATH=${ENV_LD_LIBRARY_PATH}
-                                CARGO_TARGET_DIR=${ENV_CARGO_TARGET_DIR}
-                                CARGO_INSTALL_ROOT=${ENV_CARGO_INSTALL_ROOT})
-elseif (CMAKE_HOST_WIN32)
-    set(ENV_PATH                "${PROJ_CONDA_DIR}/bin"
-                                "${PROJ_CONDA_DIR}/Scripts"
-                                "${PROJ_CONDA_DIR}/Library/bin"
-                                "${PROJ_CONDA_DIR}"
-                                "$ENV{PATH}")
-    set(ENV_CARGO_TARGET_DIR    "${PROJ_OUT_REPO_DIR}/target")
-    set(ENV_CARGO_INSTALL_ROOT  "${PROJ_CONDA_DIR}/Library")
-    string(REPLACE ";" "\\\\;" ENV_PATH "${ENV_PATH}")
-    set(ENV_VARS_OF_SYSTEM      PATH=${ENV_PATH}
-                                CARGO_TARGET_DIR=${ENV_CARGO_TARGET_DIR}
-                                CARGO_INSTALL_ROOT=${ENV_CARGO_INSTALL_ROOT})
-else()
-    message(FATAL_ERROR "Invalid OS platform. (${CMAKE_HOST_SYSTEM_NAME})")
-endif()
-remove_cmake_message_indent()
-message("")
-execute_process(
-    COMMAND ${CMAKE_COMMAND} -E env
-            ${ENV_VARS_OF_SYSTEM}
-            ${Rust_CARGO_EXECUTABLE} install
-            --path crates/docs_preprocessor
-            --debug
-            --locked
-    WORKING_DIRECTORY ${PROJ_OUT_REPO_DIR}
     ECHO_OUTPUT_VARIABLE
     ECHO_ERROR_VARIABLE
     RESULT_VARIABLE RES_VAR
