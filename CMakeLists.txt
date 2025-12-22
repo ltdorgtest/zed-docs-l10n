@@ -2,7 +2,7 @@
 # See accompanying file LICENSE-BSD for details.
 
 cmake_minimum_required(VERSION 3.25)
-project(mdbook-docs-l10n NONE)
+project(zed-docs-l10n NONE)
 
 #[============================================================[
 # Environment Variables.
