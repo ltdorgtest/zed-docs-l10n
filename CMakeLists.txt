@@ -79,6 +79,9 @@ set(GETTEXT_WRAP_WIDTH 79
     # See https://www.gnu.org/software/gettext/manual/html_node/msgcat-Invocation.html
     # and https://www.gnu.org/software/gettext/manual/html_node/msgmerge-Invocation.html for details.
 
+set(BRANCH_OF_WORKTREE "l10n"
+    CACHE STRING "The branch of the 'l10n' git worktree.")
+
 set(REMOTE_URL_OF_L10N "https://github.com/ltdorgtest/zed-docs-l10n.git"
     CACHE STRING "The remote URL of the 'l10n' repository.")
 
@@ -113,10 +116,11 @@ set(PROJ_CMAKE_TARGETS_DIR          "${PROJ_SOURCE_DIR}/cmake/targets")
 set(PROJ_CONDA_DIR                  "${PROJ_SOURCE_DIR}/.conda")
 set(PROJ_OUT_DIR                    "${PROJ_SOURCE_DIR}/out")
 set(PROJ_OUT_REPO_DIR               "${PROJ_OUT_DIR}/repo")
-set(PROJ_OUT_REPO_BOOK_DIR          "${PROJ_OUT_REPO_DIR}/docs")
-set(PROJ_OUT_REPO_BOOK_SRC_DIR      "${PROJ_OUT_REPO_BOOK_DIR}/src")
-set(PROJ_OUT_REPO_BOOK_THEME_DIR    "${PROJ_OUT_REPO_BOOK_DIR}/theme")
-set(PROJ_OUT_REPO_BOOK_LOCALE_DIR   "${PROJ_OUT_REPO_BOOK_DIR}/locale")
+set(PROJ_OUT_REPO_DOCS_DIR          "${PROJ_OUT_REPO_DIR}/docs")
+set(PROJ_OUT_REPO_DOCS_BOOK_DIR     "${PROJ_OUT_REPO_DOCS_DIR}")
+set(PROJ_OUT_REPO_DOCS_SRC_DIR      "${PROJ_OUT_REPO_DOCS_DIR}/src")
+set(PROJ_OUT_REPO_DOCS_THEME_DIR    "${PROJ_OUT_REPO_DOCS_DIR}/theme")
+set(PROJ_OUT_REPO_DOCS_LOCALE_DIR   "${PROJ_OUT_REPO_DOCS_DIR}/locale")
 set(PROJ_OUT_RENDERER_DIR           "${PROJ_OUT_DIR}/${MDBOOK_RENDERER}")
 set(PROJ_L10N_DIR                   "${PROJ_SOURCE_DIR}/l10n")
 set(PROJ_L10N_VERSION_DIR           "${PROJ_L10N_DIR}/${VERSION}")
@@ -221,7 +225,7 @@ endif()
 #]============================================================]
 
 if     (VERSION MATCHES "^(main)$")
-    set(VERSION_OF_RUST                 "1.91")
+    set(VERSION_OF_RUST                 "1.92")
     set(VERSION_OF_DASEL                "2")
     set(VERSION_OF_MDBOOK               "0.4.40")
     set(VERSION_OF_MDBOOK_I18N_HELPERS  "^0.3")
@@ -239,18 +243,23 @@ if (NOT "$CACHE{VERSION_OF_MDBOOK_I18N_HELPERS}" STREQUAL "[default]")
 endif()
 
 #[============================================================[
-# Prepare SRC_TO_BOOK_DIR    for 'mdbook_update_pot' and
-                                 'mdbook_build_docs' targets.
-# Prepare LOCALE_TO_BOOK_DIR for 'mdbook_build_docs' target.
+# Prepare SRC_TO_BOOK_DIR     for 'mdbook_update_pot' and
+                                  'mdbook_build_docs' targets.
+# Prepare THEME_TO_BOOK_DIR   for 'mdbook_build_docs' target.
+# Prepare LOCALE_TO_BOOK_DIR  for 'mdbook_build_docs' target.
 #]============================================================]
 
 file(RELATIVE_PATH SRC_TO_BOOK_DIR
-    "${PROJ_OUT_REPO_BOOK_DIR}"
-    "${PROJ_OUT_REPO_BOOK_SRC_DIR}")
+    "${PROJ_OUT_REPO_DOCS_BOOK_DIR}"
+    "${PROJ_OUT_REPO_DOCS_SRC_DIR}")
+
+file(RELATIVE_PATH THEME_TO_BOOK_DIR
+    "${PROJ_OUT_REPO_DOCS_BOOK_DIR}"
+    "${PROJ_OUT_REPO_DOCS_THEME_DIR}")
 
 file(RELATIVE_PATH LOCALE_TO_BOOK_DIR
-    "${PROJ_OUT_REPO_BOOK_DIR}"
-    "${PROJ_OUT_REPO_BOOK_LOCALE_DIR}")
+    "${PROJ_OUT_REPO_DOCS_BOOK_DIR}"
+    "${PROJ_OUT_REPO_DOCS_LOCALE_DIR}")
 
 #[============================================================[
 # Check prerequisites.
@@ -266,6 +275,7 @@ find_package(Crowdin    MODULE QUIET)
 #]============================================================]
 
 create_git_worktree_for_l10n_branch(
+    IN_BRANCH           "${BRANCH_OF_WORKTREE}"
     IN_REMOTE_URL       "${REMOTE_URL_OF_L10N}"
     IN_LOCAL_PATH       "${PROJ_SOURCE_DIR}"
     IN_WORKTREE_PATH    "${PROJ_L10N_DIR}")
@@ -310,6 +320,7 @@ message(STATUS "MODE_OF_INSTALL                 = ${MODE_OF_INSTALL}")
 message(STATUS "MDBOOK_RENDERER                 = ${MDBOOK_RENDERER}")
 message(STATUS "MDBOOK_XGETTEXT_DEPTH           = ${MDBOOK_XGETTEXT_DEPTH}")
 message(STATUS "GETTEXT_WRAP_WIDTH              = ${GETTEXT_WRAP_WIDTH}")
+message(STATUS "BRANCH_OF_WORKTREE              = ${BRANCH_OF_WORKTREE}")
 message(STATUS "REMOTE_URL_OF_L10N              = ${REMOTE_URL_OF_L10N}")
 message(STATUS "REMOTE_URL_OF_DOCS              = ${REMOTE_URL_OF_DOCS}")
 message(STATUS "BASEURL_HREF                    = ${BASEURL_HREF}")
@@ -327,10 +338,11 @@ message(STATUS "PROJ_CMAKE_TARGETS_DIR          = ${PROJ_CMAKE_TARGETS_DIR}")
 message(STATUS "PROJ_CONDA_DIR                  = ${PROJ_CONDA_DIR}")
 message(STATUS "PROJ_OUT_DIR                    = ${PROJ_OUT_DIR}")
 message(STATUS "PROJ_OUT_REPO_DIR               = ${PROJ_OUT_REPO_DIR}")
-message(STATUS "PROJ_OUT_REPO_BOOK_DIR          = ${PROJ_OUT_REPO_BOOK_DIR}")
-message(STATUS "PROJ_OUT_REPO_BOOK_SRC_DIR      = ${PROJ_OUT_REPO_BOOK_SRC_DIR}")
-message(STATUS "PROJ_OUT_REPO_BOOK_THEME_DIR    = ${PROJ_OUT_REPO_BOOK_THEME_DIR}")
-message(STATUS "PROJ_OUT_REPO_BOOK_LOCALE_DIR   = ${PROJ_OUT_REPO_BOOK_LOCALE_DIR}")
+message(STATUS "PROJ_OUT_REPO_DOCS_DIR          = ${PROJ_OUT_REPO_DOCS_DIR}")
+message(STATUS "PROJ_OUT_REPO_DOCS_BOOK_DIR     = ${PROJ_OUT_REPO_DOCS_BOOK_DIR}")
+message(STATUS "PROJ_OUT_REPO_DOCS_SRC_DIR      = ${PROJ_OUT_REPO_DOCS_SRC_DIR}")
+message(STATUS "PROJ_OUT_REPO_DOCS_THEME_DIR    = ${PROJ_OUT_REPO_DOCS_THEME_DIR}")
+message(STATUS "PROJ_OUT_REPO_DOCS_LOCALE_DIR   = ${PROJ_OUT_REPO_DOCS_LOCALE_DIR}")
 message(STATUS "PROJ_OUT_RENDERER_DIR           = ${PROJ_OUT_RENDERER_DIR}")
 message(STATUS "PROJ_L10N_DIR                   = ${PROJ_L10N_DIR}")
 message(STATUS "PROJ_L10N_VERSION_DIR           = ${PROJ_L10N_VERSION_DIR}")
@@ -347,6 +359,7 @@ message(STATUS "STATISTICS_TXT_PATH             = ${STATISTICS_TXT_PATH}")
 message(STATUS "CROWDIN_YML_PATH                = ${CROWDIN_YML_PATH}")
 message(STATUS "---------- Other Variables ----------")
 message(STATUS "SRC_TO_BOOK_DIR                 = ${SRC_TO_BOOK_DIR}")
+message(STATUS "THEME_TO_BOOK_DIR               = ${THEME_TO_BOOK_DIR}")
 message(STATUS "LOCALE_TO_BOOK_DIR              = ${LOCALE_TO_BOOK_DIR}")
 message(STATUS "LANGUAGE_LIST                   = ${LANGUAGE_LIST}")
 message(STATUS "VERSION_TYPE                    = ${VERSION_TYPE}")
@@ -401,12 +414,13 @@ set(SCRIPT_MODE_CACHE
     -D REMOVE_REDUNDANT=${REMOVE_REDUNDANT}
     -D MODE_OF_UPDATE=${MODE_OF_UPDATE}
     -D MODE_OF_INSTALL=${MODE_OF_INSTALL}
-    -D REMOTE_URL_OF_L10N=${REMOTE_URL_OF_L10N}
-    -D REMOTE_URL_OF_DOCS=${REMOTE_URL_OF_DOCS}
-    -D BASEURL_HREF=${BASEURL_HREF}
     -D MDBOOK_RENDERER=${MDBOOK_RENDERER}
     -D MDBOOK_XGETTEXT_DEPTH=${MDBOOK_XGETTEXT_DEPTH}
     -D GETTEXT_WRAP_WIDTH=${GETTEXT_WRAP_WIDTH}
+    -D BRANCH_OF_WORKTREE=${BRANCH_OF_WORKTREE}
+    -D REMOTE_URL_OF_L10N=${REMOTE_URL_OF_L10N}
+    -D REMOTE_URL_OF_DOCS=${REMOTE_URL_OF_DOCS}
+    -D BASEURL_HREF=${BASEURL_HREF}
     -D VERSION_OF_RUST=${VERSION_OF_RUST}
     -D VERSION_OF_DASEL=${VERSION_OF_DASEL}
     -D VERSION_OF_MDBOOK=${VERSION_OF_MDBOOK}
@@ -421,10 +435,11 @@ set(SCRIPT_MODE_CACHE
     -D PROJ_CONDA_DIR=${PROJ_CONDA_DIR}
     -D PROJ_OUT_DIR=${PROJ_OUT_DIR}
     -D PROJ_OUT_REPO_DIR=${PROJ_OUT_REPO_DIR}
-    -D PROJ_OUT_REPO_BOOK_DIR=${PROJ_OUT_REPO_BOOK_DIR}
-    -D PROJ_OUT_REPO_BOOK_SRC_DIR=${PROJ_OUT_REPO_BOOK_SRC_DIR}
-    -D PROJ_OUT_REPO_BOOK_THEME_DIR=${PROJ_OUT_REPO_BOOK_THEME_DIR}
-    -D PROJ_OUT_REPO_BOOK_LOCALE_DIR=${PROJ_OUT_REPO_BOOK_LOCALE_DIR}
+    -D PROJ_OUT_REPO_DOCS_DIR=${PROJ_OUT_REPO_DOCS_DIR}
+    -D PROJ_OUT_REPO_DOCS_BOOK_DIR=${PROJ_OUT_REPO_DOCS_BOOK_DIR}
+    -D PROJ_OUT_REPO_DOCS_SRC_DIR=${PROJ_OUT_REPO_DOCS_SRC_DIR}
+    -D PROJ_OUT_REPO_DOCS_THEME_DIR=${PROJ_OUT_REPO_DOCS_THEME_DIR}
+    -D PROJ_OUT_REPO_DOCS_LOCALE_DIR=${PROJ_OUT_REPO_DOCS_LOCALE_DIR}
     -D PROJ_OUT_RENDERER_DIR=${PROJ_OUT_RENDERER_DIR}
     -D PROJ_L10N_DIR=${PROJ_L10N_DIR}
     -D PROJ_L10N_VERSION_DIR=${PROJ_L10N_VERSION_DIR}
@@ -441,6 +456,7 @@ set(SCRIPT_MODE_CACHE
     -D CROWDIN_YML_PATH=${CROWDIN_YML_PATH}
     # [Other Variables]
     -D SRC_TO_BOOK_DIR=${SRC_TO_BOOK_DIR}
+    -D THEME_TO_BOOK_DIR=${THEME_TO_BOOK_DIR}
     -D LOCALE_TO_BOOK_DIR=${LOCALE_TO_BOOK_DIR}
     -D LANGUAGE_LIST=${LANGUAGE_LIST}
     -D VERSION_TYPE=${VERSION_TYPE}
